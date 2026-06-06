@@ -24,3 +24,16 @@ export interface NotionGame {
   playCount: number;
   bggLink: string;
 }
+
+export interface Player {
+  id: string;
+  name: string;
+}
+
+export interface PlayRecord {
+  id: string;
+  date: string;
+  gameId: string;
+  players: Player[];
+  scores: string;
+}

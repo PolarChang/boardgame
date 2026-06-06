@@ -8,22 +8,32 @@ const PLAYER_OPTIONS = [
   { label: "5+人", value: 5 },
 ] as const;
 
+type SortBy = "rating_desc" | "weight_desc" | "weight_asc";
+
 interface FilterBarProps {
   playerCount: number | null;
   maxPlayTime: number;
+  maxPlayTimeLimit: number;
   minWeight: number;
+  sortBy: SortBy;
+  onSmartPick: () => void;
   onPlayerCountChange: (value: number | null) => void;
   onMaxPlayTimeChange: (value: number) => void;
   onMinWeightChange: (value: number) => void;
+  onSortByChange: (value: SortBy) => void;
 }
 
 export default function FilterBar({
   playerCount,
   maxPlayTime,
+  maxPlayTimeLimit,
   minWeight,
+  sortBy,
+  onSmartPick,
   onPlayerCountChange,
   onMaxPlayTimeChange,
   onMinWeightChange,
+  onSortByChange,
 }: FilterBarProps) {
   return (
     <div className="sticky top-0 z-10 border-b border-gray-200 bg-white/95 px-6 py-4 backdrop-blur sm:px-8">
@@ -72,7 +82,7 @@ export default function FilterBar({
           <input
             type="range"
             min={15}
-            max={240}
+            max={maxPlayTimeLimit}
             step={15}
             value={maxPlayTime}
             onChange={(e) => onMaxPlayTimeChange(Number(e.target.value))}
@@ -94,6 +104,32 @@ export default function FilterBar({
             className="w-full accent-gray-900"
           />
         </label>
+
+        <label className="flex-1 text-sm text-gray-700">
+          <span className="mb-2 block text-xs font-semibold uppercase tracking-wide text-gray-500">
+            Sort by
+          </span>
+          <select
+            value={sortBy}
+            onChange={(e) => onSortByChange(e.target.value as SortBy)}
+            className="w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 shadow-sm outline-none transition focus:border-gray-900 focus:ring-2 focus:ring-gray-900/10"
+          >
+            <option value="rating_desc">BGG 評分（高 → 低）</option>
+            <option value="weight_desc">複雜度（重 → 輕）</option>
+            <option value="weight_asc">複雜度（輕 → 重）</option>
+          </select>
+        </label>
+
+        <div className="flex lg:justify-end">
+          <button
+            type="button"
+            onClick={onSmartPick}
+            className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-violet-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-violet-500 active:scale-[0.98] lg:w-auto"
+          >
+            <span aria-hidden="true">🎲</span>
+            幫我選
+          </button>
+        </div>
       </div>
     </div>
   );
