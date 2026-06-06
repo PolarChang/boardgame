@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Image from "next/image";
+import Link from "next/link";
 import type { NotionGame } from "@/lib/types";
 import FilterBar from "./FilterBar";
 import GameCard from "./GameCard";
@@ -150,17 +151,25 @@ export default function GameGallery({ initialGames }: GameGalleryProps) {
             </p>
           </div>
 
-          <button
-            type="button"
-            onClick={() => {
-              const pwd = window.prompt("請輸入管理員密碼：");
-              if (pwd) setAdminPassword(pwd);
-            }}
-            className="mt-1 rounded-lg px-2 py-1 text-xs text-gray-400 hover:bg-gray-50 hover:text-gray-600"
-            aria-label="Admin"
-          >
-            🔒
-          </button>
+          <div className="mt-1 flex items-center gap-2">
+            <Link
+              href="/dashboard"
+              className="rounded-lg px-3 py-1.5 text-sm font-semibold text-gray-700 transition hover:bg-gray-50 hover:text-gray-900"
+            >
+              📊 戰績儀表板
+            </Link>
+            <button
+              type="button"
+              onClick={() => {
+                const pwd = window.prompt("請輸入管理員密碼：");
+                if (pwd) setAdminPassword(pwd);
+              }}
+              className="rounded-lg px-2 py-1 text-xs text-gray-400 hover:bg-gray-50 hover:text-gray-600"
+              aria-label="Admin"
+            >
+              🔒
+            </button>
+          </div>
         </div>
       </header>
 

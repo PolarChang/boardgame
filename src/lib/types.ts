@@ -14,6 +14,8 @@ export interface NotionGame {
   pageId: string;
   bggId: number;
   name: string;
+  chineseName?: string;
+  comment?: string;
   image: string;
   minPlayers: number;
   maxPlayers: number;
