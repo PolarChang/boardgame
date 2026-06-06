@@ -1,0 +1,100 @@
+"use client";
+
+const PLAYER_OPTIONS = [
+  { label: "1人", value: 1 },
+  { label: "2人", value: 2 },
+  { label: "3人", value: 3 },
+  { label: "4人", value: 4 },
+  { label: "5+人", value: 5 },
+] as const;
+
+interface FilterBarProps {
+  playerCount: number | null;
+  maxPlayTime: number;
+  minWeight: number;
+  onPlayerCountChange: (value: number | null) => void;
+  onMaxPlayTimeChange: (value: number) => void;
+  onMinWeightChange: (value: number) => void;
+}
+
+export default function FilterBar({
+  playerCount,
+  maxPlayTime,
+  minWeight,
+  onPlayerCountChange,
+  onMaxPlayTimeChange,
+  onMinWeightChange,
+}: FilterBarProps) {
+  return (
+    <div className="sticky top-0 z-10 border-b border-gray-200 bg-white/95 px-6 py-4 backdrop-blur sm:px-8">
+      <div className="mx-auto flex max-w-7xl flex-col gap-5 lg:flex-row lg:items-end lg:gap-8">
+        <div className="flex-1">
+          <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500">
+            玩家人數
+          </p>
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={() => onPlayerCountChange(null)}
+              className={`rounded-full px-3.5 py-1.5 text-sm font-medium transition-colors ${
+                playerCount === null
+                  ? "bg-gray-900 text-white"
+                  : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+              }`}
+            >
+              全部
+            </button>
+            {PLAYER_OPTIONS.map((option) => (
+              <button
+                key={option.value}
+                type="button"
+                onClick={() =>
+                  onPlayerCountChange(
+                    playerCount === option.value ? null : option.value
+                  )
+                }
+                className={`rounded-full px-3.5 py-1.5 text-sm font-medium transition-colors ${
+                  playerCount === option.value
+                    ? "bg-gray-900 text-white"
+                    : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                }`}
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <label className="flex-1 text-sm text-gray-700">
+          <span className="mb-2 block text-xs font-semibold uppercase tracking-wide text-gray-500">
+            最長時間：{maxPlayTime} 分鐘
+          </span>
+          <input
+            type="range"
+            min={15}
+            max={240}
+            step={15}
+            value={maxPlayTime}
+            onChange={(e) => onMaxPlayTimeChange(Number(e.target.value))}
+            className="w-full accent-gray-900"
+          />
+        </label>
+
+        <label className="flex-1 text-sm text-gray-700">
+          <span className="mb-2 block text-xs font-semibold uppercase tracking-wide text-gray-500">
+            最低複雜度：{minWeight.toFixed(1)}
+          </span>
+          <input
+            type="range"
+            min={1}
+            max={5}
+            step={0.1}
+            value={minWeight}
+            onChange={(e) => onMinWeightChange(Number(e.target.value))}
+            className="w-full accent-gray-900"
+          />
+        </label>
+      </div>
+    </div>
+  );
+}
