@@ -2,6 +2,8 @@ name: BGG Sync
 
 on:
   schedule:
+    # 0 6 * * * 是 UTC 時間早上 6 點，也就是台灣時間的「下午 2 點」執行。
+    # 如果你想改在台灣時間「凌晨 2 點」執行，可以改成 cron: "0 18 * * *"
     - cron: "0 6 * * *"
   workflow_dispatch:
 
@@ -20,3 +22,5 @@ jobs:
           NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
           NOTION_DATABASE_ID: ${{ secrets.NOTION_DATABASE_ID }}
           BGG_USERNAME: ${{ secrets.BGG_USERNAME }}
+          # 👇 必須補上這行，把突破防火牆的鑰匙交給雲端腳本
+          BGG_AUTH_VALUE: ${{ secrets.BGG_AUTH_VALUE }}
