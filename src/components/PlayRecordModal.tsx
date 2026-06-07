@@ -312,24 +312,28 @@ export default function PlayRecordModal({
         </div>
 
         <div className="grid max-h-[80vh] grid-cols-1 overflow-hidden md:max-h-[78vh] md:grid-cols-2">
-          <section className="border-b border-gray-200 md:border-b-0 md:border-r dark:border-gray-800">
-            <div className="relative aspect-[3/4] w-full bg-gray-100 md:aspect-auto md:h-full dark:bg-gray-900">
-              {gameImage ? (
-                <Image
-                  src={gameImage}
-                  alt={gameName}
-                  fill
-                  sizes="(max-width: 768px) 100vw, 50vw"
-                  className="object-cover"
-                  priority
-                />
-              ) : (
-                <div className="flex h-full items-center justify-center text-sm text-gray-400 dark:text-gray-500">
-                  No cover image
+          <section className="flex flex-col border-b border-gray-200 md:border-b-0 md:border-r dark:border-gray-800">
+            <div className="bg-gray-100 p-5 dark:bg-gray-900">
+              <div className="mx-auto w-3/4">
+                <div className="relative h-72 w-full overflow-hidden rounded-lg bg-gray-50 dark:bg-gray-950 sm:h-80 md:h-96">
+                  {gameImage ? (
+                    <Image
+                      src={gameImage}
+                      alt={gameName}
+                      fill
+                      sizes="(max-width: 768px) 100vw, 50vw"
+                      className="object-contain"
+                      priority
+                    />
+                  ) : (
+                    <div className="flex h-full items-center justify-center text-sm text-gray-400 dark:text-gray-500">
+                      No cover image
+                    </div>
+                  )}
                 </div>
-              )}
+              </div>
             </div>
-            <div className="border-t border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-gray-950">
+            <div className="flex-1 overflow-y-auto border-t border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-gray-950">
               <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
                 備註
               </p>

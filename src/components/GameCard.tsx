@@ -23,7 +23,7 @@ export default function GameCard({ game, isAdmin = false, adminPassword }: GameC
         <button
           type="button"
           onClick={() => setOpen(true)}
-          className="relative h-48 cursor-pointer bg-gray-100 text-left"
+          className="relative h-48 cursor-pointer bg-gray-100 text-left dark:bg-zinc-800"
         >
           {game.image ? (
             <Image
@@ -31,7 +31,7 @@ export default function GameCard({ game, isAdmin = false, adminPassword }: GameC
               alt={primaryName}
               fill
               sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
-              className="object-cover transition-transform duration-200 group-hover:scale-[1.02]"
+              className="object-contain transition-transform duration-200 group-hover:scale-[1.02]"
             />
           ) : (
             <div className="flex h-full items-center justify-center text-xs text-gray-400">
