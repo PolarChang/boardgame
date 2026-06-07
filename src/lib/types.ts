@@ -16,6 +16,8 @@ export interface NotionGame {
   name: string;
   chineseName?: string;
   comment?: string;
+  type?: 'Base' | 'Expansion';
+  ownership?: 'Owned' | 'Played Elsewhere';
   image: string;
   minPlayers: number;
   maxPlayers: number;

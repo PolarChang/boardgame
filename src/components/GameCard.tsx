@@ -23,7 +23,7 @@ export default function GameCard({ game, isAdmin = false, adminPassword }: GameC
         <button
           type="button"
           onClick={() => setOpen(true)}
-          className="relative h-48 cursor-pointer bg-gray-100 text-left dark:bg-zinc-800"
+          className="relative h-48 cursor-pointer bg-gray-100 text-left"
         >
           {game.image ? (
             <Image
@@ -31,15 +31,23 @@ export default function GameCard({ game, isAdmin = false, adminPassword }: GameC
               alt={primaryName}
               fill
               sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
-              className="object-contain transition-transform duration-200 group-hover:scale-[1.02]"
+              className="object-contain transition-transform duration-200 group-hover:scale-[1.05]"
             />
           ) : (
             <div className="flex h-full items-center justify-center text-xs text-gray-400">
               No cover image
             </div>
           )}
-          <span className="absolute right-2 top-2 rounded-full bg-amber-500 px-2.5 py-1 text-xs font-bold text-white shadow">
-            {game.complexity.toFixed(1)}
+          <div className="absolute left-2 top-2 flex flex-col gap-1">
+            {game.type === 'Expansion' && (
+                <span className="rounded-full bg-violet-500 px-2 py-0.5 text-[10px] font-bold text-white">🧩 擴充</span>
+            )}
+            {game.ownership === 'Played Elsewhere' && (
+                <span className="rounded-full bg-amber-500 px-2 py-0.5 text-[10px] font-bold text-white">☕ 外出/朋友的</span>
+            )}
+          </div>
+          <span className="absolute right-2 top-2 rounded-full bg-black/50 px-2.5 py-1 text-xs font-bold text-white shadow">
+            {game.complexity > 0 ? game.complexity.toFixed(1) : '-'}
           </span>
         </button>
 
@@ -48,33 +56,19 @@ export default function GameCard({ game, isAdmin = false, adminPassword }: GameC
             <h2 className="text-sm font-bold leading-snug text-gray-900">
               {primaryName}
             </h2>
-            {hasChineseName ? (
-              <p className="mt-1 text-xs text-gray-500">{game.name}</p>
-            ) : null}
+            {hasChineseName && (
+              <p className="mt-0.5 text-xs text-gray-400">{game.name}</p>
+            )}
           </div>
 
-          <div className="mt-auto flex flex-wrap gap-2">
-            <span className="rounded-full bg-sky-50 px-2 py-0.5 text-xs font-medium text-sky-800">
-              Best {game.bestPlayers || "—"} players
+          <div className="mt-auto flex flex-wrap gap-1.5 pt-2">
+            <span className="rounded-full bg-gray-50 px-2 py-0.5 text-[10px] font-medium text-gray-600">
+              {game.minPlayers}–{game.maxPlayers} 人
             </span>
-            <span className="rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-600">
-              {game.minPlayers}–{game.maxPlayers} players
-            </span>
-            <span className="rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-600">
-              {game.playTime} min
-            </span>
-            <span className="rounded-full bg-violet-50 px-2 py-0.5 text-xs font-medium text-violet-800">
-              Rating {game.rating.toFixed(1)}
+            <span className="rounded-full bg-gray-50 px-2 py-0.5 text-[10px] font-medium text-gray-600">
+              {game.playTime > 0 ? `${game.playTime} 分鐘` : '時間未定'}
             </span>
           </div>
-
-          <button
-            type="button"
-            onClick={() => setOpen(true)}
-            className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-gray-900 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-gray-800"
-          >
-            📜 遊玩紀錄
-          </button>
         </div>
       </article>
 

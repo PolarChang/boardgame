@@ -37,6 +37,13 @@ function extractRichText(
   return prop.rich_text.map((t) => t.plain_text).join("");
 }
 
+function extractSelect(
+  prop: PageObjectResponse["properties"][string] | undefined
+): string | null {
+  if (!prop || prop.type !== "select") return null;
+  return prop.select?.name ?? null;
+}
+
 function extractTitleOrRichText(
   prop: PageObjectResponse["properties"][string] | undefined
 ): string {
@@ -101,6 +108,14 @@ function parseNotionPage(page: PageObjectResponse): NotionGame | null {
   const chineseName = extractTitleOrRichText(props["Chinese Name"]);
   const comment = extractTitleOrRichText(props.Comment ?? props["Comment"]);
 
+  const rawType = extractSelect(props["Type"]);
+  const type =
+    rawType === "Expansion" ? "Expansion" : "Base";
+
+  const rawOwnership = extractSelect(props["Ownership"]);
+  const ownership =
+    rawOwnership === "Played Elsewhere" ? "Played Elsewhere" : "Owned";
+
   if (!bggId || !name) {
     return null;
   }
@@ -111,6 +126,8 @@ function parseNotionPage(page: PageObjectResponse): NotionGame | null {
     name,
     chineseName,
     comment,
+    type,
+    ownership,
     image: extractCoverImageUrl(props["Cover Image"]),
     minPlayers: extractNumber(props["Min Players"]),
     maxPlayers: extractNumber(props["Max Players"]),

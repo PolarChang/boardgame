@@ -16,11 +16,15 @@ interface FilterBarProps {
   maxPlayTimeLimit: number;
   minWeight: number;
   sortBy: SortBy;
+  showExpansions: boolean;
+  ownershipFilter: 'Owned' | 'All';
   onSmartPick: () => void;
   onPlayerCountChange: (value: number | null) => void;
   onMaxPlayTimeChange: (value: number) => void;
   onMinWeightChange: (value: number) => void;
   onSortByChange: (value: SortBy) => void;
+  onShowExpansionsChange: (value: boolean) => void;
+  onOwnershipFilterChange: (value: 'Owned' | 'All') => void;
 }
 
 export default function FilterBar({
@@ -29,16 +33,20 @@ export default function FilterBar({
   maxPlayTimeLimit,
   minWeight,
   sortBy,
+  showExpansions,
+  ownershipFilter,
   onSmartPick,
   onPlayerCountChange,
   onMaxPlayTimeChange,
   onMinWeightChange,
   onSortByChange,
+  onShowExpansionsChange,
+  onOwnershipFilterChange,
 }: FilterBarProps) {
   return (
-    <div className="sticky top-0 z-10 border-b border-gray-200 bg-white/95 px-6 py-4 backdrop-blur sm:px-8">
+    <div className="border-b border-gray-200 bg-white px-6 py-4 sm:px-8">
       <div className="mx-auto flex max-w-7xl flex-col gap-5 lg:flex-row lg:items-end lg:gap-8">
-        <div className="flex-1">
+        <div className="flex-[2]">
           <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500">
             玩家人數
           </p>
@@ -119,6 +127,17 @@ export default function FilterBar({
             <option value="weight_asc">複雜度（輕 → 重）</option>
           </select>
         </label>
+
+        <div className="flex flex-col gap-2 text-sm">
+            <label className="flex items-center gap-2 cursor-pointer">
+                <input type="checkbox" className="accent-gray-900" checked={showExpansions} onChange={(e) => onShowExpansionsChange(e.target.checked)} />
+                <span>🧩 包含擴充</span>
+            </label>
+            <select value={ownershipFilter} onChange={(e) => onOwnershipFilterChange(e.target.value as 'Owned' | 'All')} className="rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 shadow-sm">
+                <option value="Owned">🏠 我的收藏 (Owned)</option>
+                <option value="All">🌍 全部紀錄 (All)</option>
+            </select>
+        </div>
 
         <div className="flex lg:justify-end">
           <button
