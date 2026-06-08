@@ -1,5 +1,5 @@
 "use client";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import type { NotionGame } from "@/lib/types";
@@ -17,6 +17,9 @@ function getMaxPlayTimeLimit(games: NotionGame[]) {
   return Math.max(240, maxFromData);
 }
 
+const AUTH_TOKEN_KEY = "boardgame_auth_token";
+const AUTH_DURATION_MS = 30 * 24 * 60 * 60 * 1000; // 30 days in milliseconds
+
 export default function GameGallery({ initialGames }: GameGalleryProps) {
   const [playerCount, setPlayerCount] = useState<number | null>(null);
   const [maxPlayTime, setMaxPlayTime] = useState(() =>
@@ -26,6 +29,28 @@ export default function GameGallery({ initialGames }: GameGalleryProps) {
   const [sortBy, setSortBy] = useState<SortBy>("rating_desc");
   const [adminPassword, setAdminPassword] = useState("");
   const isAdmin = adminPassword !== "";
+  const restoredFromStorage = useRef(false);
+
+  // On mount, restore auth token from localStorage
+  useEffect(() => {
+    if (restoredFromStorage.current) return;
+    try {
+      const raw = localStorage.getItem(AUTH_TOKEN_KEY);
+      if (raw) {
+        const data = JSON.parse(raw);
+        if (data.expiry > Date.now() && data.password) {
+          setAdminPassword(data.password);
+        } else {
+          // Token expired or invalid — clean up
+          localStorage.removeItem(AUTH_TOKEN_KEY);
+        }
+      }
+    } catch {
+      // Corrupted data — clean up
+      localStorage.removeItem(AUTH_TOKEN_KEY);
+    }
+    restoredFromStorage.current = true;
+  }, []);
   const [newBggId, setNewBggId] = useState("");
   const [isAdding, setIsAdding] = useState(false);
   const [showScrollTop, setShowScrollTop] = useState(false);
@@ -159,12 +184,33 @@ export default function GameGallery({ initialGames }: GameGalleryProps) {
               type="button"
               onClick={() => {
                 const pwd = window.prompt("請輸入管理員密碼：");
-                if (pwd) setAdminPassword(pwd);
+                if (pwd) {
+                  setAdminPassword(pwd);
+                  // Persist to localStorage with a 30-day expiry
+                  const token = {
+                    password: pwd,
+                    expiry: Date.now() + AUTH_DURATION_MS,
+                  };
+                  localStorage.setItem(AUTH_TOKEN_KEY, JSON.stringify(token));
+                }
               }}
               className="text-gray-400 hover:text-gray-600"
             >
               {isAdmin ? '🔓' : '🔒'}
             </button>
+            {isAdmin && (
+              <button
+                type="button"
+                onClick={() => {
+                  setAdminPassword("");
+                  localStorage.removeItem(AUTH_TOKEN_KEY);
+                }}
+                className="text-xs text-gray-400 hover:text-red-500 transition-colors"
+                title="鎖定 / 登出管理員"
+              >
+                鎖定
+              </button>
+            )}
             <button 
                 className="md:hidden p-2 text-gray-600"
                 onClick={() => setIsFilterExpanded(!isFilterExpanded)}
