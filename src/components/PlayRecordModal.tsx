@@ -28,6 +28,11 @@ interface RecordFormState {
   date: string;
   location: string;
   notes: string;
+  isCoop: boolean;
+  coopScenario: string;
+  coopDifficulty: string;
+  coopResult: "Win" | "Loss";
+  coopFailReason: string;
   playerScores: PlayerScoreEntry[];
 }
 
@@ -48,6 +53,11 @@ function createInitialFormState(): RecordFormState {
     date: todayISODate(),
     location: "",
     notes: "",
+    isCoop: false,
+    coopScenario: "",
+    coopDifficulty: "",
+    coopResult: "Win",
+    coopFailReason: "",
     playerScores: [createEmptyPlayerScore()],
   };
 }
@@ -73,9 +83,6 @@ export default function PlayRecordModal({
   const [password, setPassword] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const effectivePassword = adminPassword ?? password;
-
-  // Co-op state (kept for the summary bar)
-  const [isCoop, setIsCoop] = useState(false);
 
   const filteredPlays = useMemo(() => {
     if (!viewerId) return plays;
@@ -197,17 +204,34 @@ export default function PlayRecordModal({
     if (recordForm.playerScores.length === 0) return;
     setSubmitting(true);
     try {
-      // Build scores string matching the format expected by the API
-      const scoresParts = recordForm.playerScores.map((entry) => {
-        const player = players.find((p) => p.id === entry.playerId);
-        const name = player?.name ?? "未知";
-        const winners = recordForm.playerScores
-          .filter((e) => e.isWinner)
-          .map((e) => players.find((p) => p.id === e.playerId)?.name ?? "未知");
-        return `${name}: ${entry.score}分` + (entry.isWinner ? " [贏家]" : "") + (entry.firstPlay ? " [初玩]" : "");
-      });
-      const scoresStr = scoresParts.join(", ");
+      let scoresStr: string;
       const playerIds = recordForm.playerScores.map((e) => e.playerId).filter(Boolean);
+
+      if (recordForm.isCoop) {
+        // Co-op mode: default scores to 0, sync isWinner with team result
+        const teamWin = recordForm.coopResult === "Win";
+        const parts: string[] = [];
+        if (recordForm.coopScenario) parts.push(`[關卡: ${recordForm.coopScenario}]`);
+        if (recordForm.coopDifficulty) parts.push(`[難度: ${recordForm.coopDifficulty}]`);
+        parts.push(`[團隊結果: ${teamWin ? "勝利 🎉" : "失敗 💀"}]`);
+        if (recordForm.coopFailReason) parts.push(`[敗因: ${recordForm.coopFailReason}]`);
+
+        const playerParts = recordForm.playerScores.map((entry) => {
+          const player = players.find((p) => p.id === entry.playerId);
+          const name = player?.name ?? "未知";
+          return `${name}: 0分` + (entry.firstPlay ? " [初玩]" : "");
+        });
+        parts.push(playerParts.join(", "));
+        scoresStr = parts.join(" ");
+      } else {
+        // Competitive mode: individual scores
+        const scoresParts = recordForm.playerScores.map((entry) => {
+          const player = players.find((p) => p.id === entry.playerId);
+          const name = player?.name ?? "未知";
+          return `${name}: ${entry.score}分` + (entry.isWinner ? " [贏家]" : "") + (entry.firstPlay ? " [初玩]" : "");
+        });
+        scoresStr = scoresParts.join(", ");
+      }
 
       const payload: Record<string, unknown> = {
         gameId,
@@ -340,17 +364,6 @@ export default function PlayRecordModal({
                   <span className="text-sm font-semibold text-gray-700">
                     👑 歷史最高分: {hallOfFame?.max ?? "無"}
                   </span>
-                  {isAdmin && (
-                    <label className="flex items-center gap-1.5 text-sm text-gray-600 cursor-pointer ml-auto">
-                      <input
-                        type="checkbox"
-                        checked={isCoop}
-                        onChange={(e) => setIsCoop(e.target.checked)}
-                        className="rounded"
-                      />
-                      🤝 合作遊戲模式
-                    </label>
-                  )}
                 </div>
 
                 {/* Scrollable Content Area */}
@@ -442,6 +455,22 @@ export default function PlayRecordModal({
                       基本資訊
                     </h3>
 
+                    {/* Co-op Mode Toggle */}
+                    <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={recordForm.isCoop}
+                        onChange={(e) =>
+                          setRecordForm((prev) => ({
+                            ...prev,
+                            isCoop: e.target.checked,
+                          }))
+                        }
+                        className="rounded"
+                      />
+                      🤝 合作遊戲模式
+                    </label>
+
                     {/* Date */}
                     <div className="flex flex-col gap-1.5">
                       <label className="text-xs font-medium text-gray-500">
@@ -499,10 +528,115 @@ export default function PlayRecordModal({
                     </div>
                   </div>
 
+                  {/* Co-op Specific Fields (shown only when isCoop is true) */}
+                  {recordForm.isCoop && (
+                    <div className="space-y-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
+                      <h3 className="text-base font-semibold text-gray-800">
+                        合作模式設定
+                      </h3>
+
+                      {/* Scenario / Level */}
+                      <div className="flex flex-col gap-1.5">
+                        <label className="text-xs font-medium text-gray-500">
+                          關卡 / 劇本
+                        </label>
+                        <input
+                          type="text"
+                          value={recordForm.coopScenario}
+                          onChange={(e) =>
+                            setRecordForm((prev) => ({
+                              ...prev,
+                              coopScenario: e.target.value,
+                            }))
+                          }
+                          placeholder="例如: 第3關、瘟疫危機-普通難度..."
+                          className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-400 focus:border-transparent"
+                        />
+                      </div>
+
+                      {/* Difficulty */}
+                      <div className="flex flex-col gap-1.5">
+                        <label className="text-xs font-medium text-gray-500">
+                          難度設定
+                        </label>
+                        <input
+                          type="text"
+                          value={recordForm.coopDifficulty}
+                          onChange={(e) =>
+                            setRecordForm((prev) => ({
+                              ...prev,
+                              coopDifficulty: e.target.value,
+                            }))
+                          }
+                          placeholder="例如: 簡單、普通、困難、傳奇..."
+                          className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-400 focus:border-transparent"
+                        />
+                      </div>
+
+                      {/* Team Result */}
+                      <div className="flex flex-col gap-1.5">
+                        <label className="text-xs font-medium text-gray-500">
+                          團隊結果
+                        </label>
+                        <div className="flex gap-4">
+                          <label className="flex items-center gap-1.5 text-sm text-gray-700 cursor-pointer">
+                            <input
+                              type="radio"
+                              name="coopResult"
+                              checked={recordForm.coopResult === "Win"}
+                              onChange={() =>
+                                setRecordForm((prev) => ({
+                                  ...prev,
+                                  coopResult: "Win",
+                                }))
+                              }
+                              className="accent-gray-900"
+                            />
+                            勝利 🎉
+                          </label>
+                          <label className="flex items-center gap-1.5 text-sm text-gray-700 cursor-pointer">
+                            <input
+                              type="radio"
+                              name="coopResult"
+                              checked={recordForm.coopResult === "Loss"}
+                              onChange={() =>
+                                setRecordForm((prev) => ({
+                                  ...prev,
+                                  coopResult: "Loss",
+                                }))
+                              }
+                              className="accent-gray-900"
+                            />
+                            失敗 💀
+                          </label>
+                        </div>
+                      </div>
+
+                      {/* Failure Reason */}
+                      <div className="flex flex-col gap-1.5">
+                        <label className="text-xs font-medium text-gray-500">
+                          敗北原因 / 備註
+                        </label>
+                        <input
+                          type="text"
+                          value={recordForm.coopFailReason}
+                          onChange={(e) =>
+                            setRecordForm((prev) => ({
+                              ...prev,
+                              coopFailReason: e.target.value,
+                            }))
+                          }
+                          placeholder="例如: 牌庫耗盡、時間到..."
+                          className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-400 focus:border-transparent"
+                        />
+                      </div>
+                    </div>
+                  )}
+
                   {/* Player Scores Section */}
                   <div className="space-y-3">
                     <h3 className="text-base font-semibold text-gray-800">
-                      玩家分數
+                      參與玩家
                     </h3>
 
                     {recordForm.playerScores.map((entry, index) => (
@@ -528,35 +662,40 @@ export default function PlayRecordModal({
                           ))}
                         </select>
 
-                        {/* Score Input */}
-                        <input
-                          type="number"
-                          value={entry.score}
-                          onChange={(e) =>
-                            updatePlayerScore(index, {
-                              score: parseInt(e.target.value) || 0,
-                            })
-                          }
-                          placeholder="分數"
-                          className="border border-gray-300 rounded-lg px-2 py-2 text-sm w-20 focus:outline-none focus:ring-2 focus:ring-gray-400 focus:border-transparent"
-                        />
+                        {/* Competitive Mode: Score + Is Winner */}
+                        {!recordForm.isCoop && (
+                          <>
+                            {/* Score Input */}
+                            <input
+                              type="number"
+                              value={entry.score}
+                              onChange={(e) =>
+                                updatePlayerScore(index, {
+                                  score: parseInt(e.target.value) || 0,
+                                })
+                              }
+                              placeholder="分數"
+                              className="border border-gray-300 rounded-lg px-2 py-2 text-sm w-20 focus:outline-none focus:ring-2 focus:ring-gray-400 focus:border-transparent"
+                            />
 
-                        {/* isWinner Checkbox */}
-                        <label className="flex items-center gap-1 text-xs text-gray-600 cursor-pointer shrink-0">
-                          <input
-                            type="checkbox"
-                            checked={entry.isWinner}
-                            onChange={(e) =>
-                              updatePlayerScore(index, {
-                                isWinner: e.target.checked,
-                              })
-                            }
-                            className="rounded"
-                          />
-                          贏家
-                        </label>
+                            {/* isWinner Checkbox */}
+                            <label className="flex items-center gap-1 text-xs text-gray-600 cursor-pointer shrink-0">
+                              <input
+                                type="checkbox"
+                                checked={entry.isWinner}
+                                onChange={(e) =>
+                                  updatePlayerScore(index, {
+                                    isWinner: e.target.checked,
+                                  })
+                                }
+                                className="rounded"
+                              />
+                              贏家
+                            </label>
+                          </>
+                        )}
 
-                        {/* firstPlay Checkbox */}
+                        {/* firstPlay Checkbox (shown in both modes) */}
                         <label className="flex items-center gap-1 text-xs text-gray-600 cursor-pointer shrink-0">
                           <input
                             type="checkbox"

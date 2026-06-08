@@ -101,6 +101,7 @@ export default function GameGallery({ initialGames }: GameGalleryProps) {
   }, []);
 
   const pickOne = useCallback(() => {
+    console.log("🎲 pickOne clicked, filteredGames length:", filteredGames.length);
     if (filteredGames.length === 0) {
       window.alert("目前條件下沒有符合的遊戲");
       return;
@@ -246,7 +247,70 @@ export default function GameGallery({ initialGames }: GameGalleryProps) {
         </button>
       ) : null}
       
-      {/* (Picker modal code would follow here...) */}
+      {/* Picker Modal */}
+      {pickerOpen && pickedGame && (
+        <div
+          className={`fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 transition-opacity duration-200 ${
+            pickerVisible ? "opacity-100" : "opacity-0"
+          }`}
+          onClick={closePicker}
+        >
+          <div
+            className={`max-h-[85vh] w-full max-w-md transform overflow-y-auto rounded-2xl bg-white p-6 shadow-2xl transition-all duration-200 ${
+              pickerVisible ? "scale-100" : "scale-95"
+            }`}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {pickedGame.image && (
+              <div className="relative mb-4 aspect-[3/2] w-full overflow-hidden rounded-xl">
+                <Image
+                  src={pickedGame.image}
+                  alt={pickedGame.name}
+                  fill
+                  className="object-contain"
+                  sizes="(max-width: 768px) 100vw, 400px"
+                />
+              </div>
+            )}
+            <h2 className="text-xl font-bold text-gray-900">{pickedGame.chineseName || pickedGame.name}</h2>
+            {pickedGame.chineseName && (
+              <p className="mt-1 text-sm text-gray-500">{pickedGame.name}</p>
+            )}
+            <div className="mt-4 flex flex-wrap gap-3 text-sm text-gray-600">
+              {pickedGame.minPlayers > 0 && pickedGame.maxPlayers > 0 && (
+                <span className="rounded-md bg-gray-100 px-2.5 py-1">
+                  👥 {pickedGame.minPlayers}-{pickedGame.maxPlayers}人
+                </span>
+              )}
+              {pickedGame.playTime ? (
+                <span className="rounded-md bg-gray-100 px-2.5 py-1">⏱ {pickedGame.playTime}分</span>
+              ) : null}
+              {pickedGame.complexity ? (
+                <span className="rounded-md bg-gray-100 px-2.5 py-1">⚖ {pickedGame.complexity.toFixed(1)}</span>
+              ) : null}
+              {pickedGame.rating ? (
+                <span className="rounded-md bg-gray-100 px-2.5 py-1">⭐ {pickedGame.rating.toFixed(1)}</span>
+              ) : null}
+            </div>
+            <div className="mt-6 flex gap-3">
+              <button
+                type="button"
+                onClick={repick}
+                className="flex-1 rounded-xl bg-violet-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-violet-500 active:scale-[0.98]"
+              >
+                🎲 換一個
+              </button>
+              <button
+                type="button"
+                onClick={closePicker}
+                className="flex-1 rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 shadow-sm transition hover:bg-gray-50 active:scale-[0.98]"
+              >
+                關閉
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   );
 }
