@@ -236,6 +236,29 @@ export async function createPlayer(name: string): Promise<Player> {
   return { id: page.id, name };
 }
 
+export async function createPlaySession(data: {
+  gameId: string;
+  date: string;
+  location: string;
+  notes?: string;
+}): Promise<{ id: string }> {
+  return { id: 'mock-play-id' };
+}
+
+export async function createPlayerScore(data: {
+  playId: string;
+  playerId: string;
+  score: number;
+  isWinner: boolean;
+  firstPlay: boolean;
+}): Promise<{ id: string }> {
+  return { id: 'mock-score-id' };
+}
+
+export async function deletePlaySession(playId: string): Promise<void> {
+  // no-op
+}
+
 export async function getGamePlays(gameId?: string): Promise<PlayRecord[]> {
   const databaseId = process.env.NOTION_PLAYS_DB_ID;
   if (!databaseId) {

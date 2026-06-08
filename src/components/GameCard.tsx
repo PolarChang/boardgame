@@ -69,6 +69,13 @@ export default function GameCard({ game, isAdmin = false, adminPassword }: GameC
               {game.playTime > 0 ? `${game.playTime} 分鐘` : '時間未定'}
             </span>
           </div>
+          <button
+            type="button"
+            onClick={() => setOpen(true)}
+            className="mt-3 w-full rounded-lg bg-gray-900 py-2 text-xs font-bold text-white transition-colors hover:bg-gray-800"
+          >
+            遊玩紀錄
+          </button>
         </div>
       </article>
 
