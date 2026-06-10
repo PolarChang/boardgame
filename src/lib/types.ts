@@ -41,3 +41,31 @@ export interface PlayRecord {
   players: Player[];
   scores: string;
 }
+
+export interface PlayLogPlayer {
+  name: string;
+  score: number;
+  factionOrColor?: string;
+  isWinner: boolean;
+}
+
+export interface PlayLog {
+  id: string;
+  gameId: string;
+  gameName: string;
+  date: string;
+  location?: string;
+  durationMinutes: number;
+  players: PlayLogPlayer[];
+  endgamePhotoUrl?: string;
+  notes?: string;
+}
+
+export interface SmartFilterTag {
+  id: string;
+  label: string;
+  icon: string;
+  description: string;
+  filterFn: (game: NotionGame) => boolean;
+  applyFilters: () => { minWeight: number; maxPlayTime: number };
+}

@@ -1,3 +1,235 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+@layer base {
+  body {
+    background-color: #f7f4eb;
+    color: #2d241e;
+  }
+
+  /* Parchment background with subtle grid lines overlay */
+  .parchment-bg {
+    background-color: #f7f4eb;
+    background-image:
+      linear-gradient(rgba(234, 221, 202, 0.3) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(234, 221, 202, 0.3) 1px, transparent 1px);
+    background-size: 40px 40px;
+  }
+
+  /* Wax seal styling */
+  .wax-seal {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: #a84343;
+    color: #f7f4eb;
+    border-radius: 50%;
+    width: 1.5rem;
+    height: 1.5rem;
+    font-size: 0.625rem;
+    font-weight: 700;
+    box-shadow:
+      0 1px 3px rgba(168, 67, 67, 0.4),
+      inset 0 -1px 0 rgba(0, 0, 0, 0.2);
+  }
+
+  /* Brass double-border */
+  .brass-border {
+    border: 2px solid #c5a059;
+    outline: 1px solid #c5a059;
+    outline-offset: 3px;
+  }
+
+  .brass-border-thin {
+    border: 1px solid #c5a059;
+    outline: 1px solid #c5a059;
+    outline-offset: 2px;
+  }
+
+  /* Old-world ledger table styling */
+  .ledger-table {
+    border-collapse: collapse;
+    width: 100%;
+  }
+
+  .ledger-table th {
+    font-family: var(--font-cinzel), serif;
+    font-weight: 600;
+    font-size: 0.6875rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: #5c4f43;
+    border-bottom: 1px solid #eaddca;
+    padding: 0.75rem 1rem;
+    text-align: left;
+  }
+
+  .ledger-table td {
+    border-bottom: 1px solid #f0e8d8;
+    padding: 0.75rem 1rem;
+    font-size: 0.875rem;
+    color: #2d241e;
+  }
+
+  .ledger-table tr:hover td {
+    background-color: rgba(234, 221, 202, 0.25);
+  }
+
+  /* Vintage photo frame */
+  .vintage-frame {
+    border: 1px solid #c5a059;
+    padding: 4px;
+    background: #f7f4eb;
+    box-shadow:
+      0 2px 8px rgba(45, 36, 30, 0.08),
+      inset 0 0 0 1px #eaddca;
+    border-radius: 2px;
+  }
+
+  /* Custom scrollbar for parchment theme */
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: #f0e8d8;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: #c5a059;
+    border-radius: 4px;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: #b0883a;
+  }
+}
+
+@layer components {
+  /* Euro-classic button styling */
+  .btn-euro {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0.5rem 1.25rem;
+    font-family: var(--font-dm-sans), sans-serif;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    border: 1px solid #c5a059;
+    background: transparent;
+    color: #2d241e;
+    transition: all 0.15s ease;
+    cursor: pointer;
+  }
+
+  .btn-euro:hover {
+    background: rgba(197, 160, 89, 0.1);
+  }
+
+  .btn-euro-primary {
+    background: #2c5d63;
+    border-color: #2c5d63;
+    color: #f7f4eb;
+  }
+
+  .btn-euro-primary:hover {
+    background: #1e3d59;
+    border-color: #1e3d59;
+  }
+
+  .btn-wax-seal {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0.5rem 1.25rem;
+    font-family: var(--font-dm-sans), sans-serif;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    background: #a84343;
+    color: #f7f4eb;
+    border: none;
+    transition: all 0.15s ease;
+    cursor: pointer;
+  }
+
+  .btn-wax-seal:hover {
+    background: #8a3535;
+  }
+
+  /* Euro-style card */
+  .card-euro {
+    background: #fcf9f2;
+    border: 1px solid #eaddca;
+    transition: all 0.2s ease;
+  }
+
+  .card-euro:hover {
+    border-color: #c5a059;
+    box-shadow: 0 4px 16px rgba(197, 160, 89, 0.15);
+  }
+
+  /* Smart filter tag */
+  .filter-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    padding: 0.375rem 0.875rem;
+    font-family: var(--font-dm-sans), sans-serif;
+    font-size: 0.8125rem;
+    font-weight: 500;
+    border: 1px solid #eaddca;
+    background: transparent;
+    color: #5c4f43;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    border-radius: 9999px;
+  }
+
+  .filter-tag:hover {
+    border-color: #c5a059;
+    background: rgba(197, 160, 89, 0.05);
+  }
+
+  .filter-tag-active {
+    background: #2c5d63;
+    border-color: #2c5d63;
+    color: #f7f4eb;
+  }
+
+  .filter-tag-active:hover {
+    background: #1e3d59;
+    border-color: #1e3d59;
+  }
+
+  /* Form inputs with euro styling */
+  .input-euro {
+    border: 1px solid #eaddca;
+    background: #fcf9f2;
+    padding: 0.5rem 0.75rem;
+    font-size: 0.875rem;
+    color: #2d241e;
+    outline: none;
+    transition: border-color 0.15s ease;
+  }
+
+  .input-euro:focus {
+    border-color: #c5a059;
+    box-shadow: 0 0 0 2px rgba(197, 160, 89, 0.15);
+  }
+}
+
+@layer utilities {
+  .font-heading {
+    font-family: var(--font-cinzel), serif;
+  }
+  .font-body {
+    font-family: var(--font-dm-sans), sans-serif;
+  }
+  .font-elegant {
+    font-family: var(--font-cormorant), serif;
+  }
+}

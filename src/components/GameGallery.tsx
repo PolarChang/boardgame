@@ -1,10 +1,10 @@
 "use client";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
-import Link from "next/link";
-import type { NotionGame } from "@/lib/types";
+import type { NotionGame, SmartFilterTag } from "@/lib/types";
 import FilterBar from "./FilterBar";
 import GameCard from "./GameCard";
+import { createSmartFilterTags } from "./SmartFilterTags";
 
 interface GameGalleryProps {
   initialGames: NotionGame[];
@@ -41,12 +41,10 @@ export default function GameGallery({ initialGames }: GameGalleryProps) {
         if (data.expiry > Date.now() && data.password) {
           setAdminPassword(data.password);
         } else {
-          // Token expired or invalid — clean up
           localStorage.removeItem(AUTH_TOKEN_KEY);
         }
       }
     } catch {
-      // Corrupted data — clean up
       localStorage.removeItem(AUTH_TOKEN_KEY);
     }
     restoredFromStorage.current = true;
@@ -57,11 +55,19 @@ export default function GameGallery({ initialGames }: GameGalleryProps) {
   const [pickedGame, setPickedGame] = useState<NotionGame | null>(null);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [pickerVisible, setPickerVisible] = useState(false);
-  
-  // New filters
+
+  // Filters
   const [showExpansions, setShowExpansions] = useState(false);
   const [ownershipFilter, setOwnershipFilter] = useState<'Owned' | 'All'>('Owned');
   const [isFilterExpanded, setIsFilterExpanded] = useState(false);
+
+  // Smart Filter Tags
+  const [activeSmartFilterId, setActiveSmartFilterId] = useState<string | null>(null);
+
+  const smartFilterTags = useMemo(
+    () => createSmartFilterTags(setMinWeight, setMaxPlayTime),
+    []
+  );
 
   const maxPlayTimeLimit = useMemo(() => {
     return getMaxPlayTimeLimit(initialGames);
@@ -80,8 +86,24 @@ export default function GameGallery({ initialGames }: GameGalleryProps) {
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
+  const handleSmartFilterClick = useCallback(
+    (tag: SmartFilterTag | null) => {
+      if (tag === null) {
+        setActiveSmartFilterId(null);
+        setMinWeight(1);
+        setMaxPlayTime(maxPlayTimeLimit);
+        return;
+      }
+      setActiveSmartFilterId(tag.id);
+      const filters = tag.applyFilters();
+      setMinWeight(filters.minWeight);
+      setMaxPlayTime(filters.maxPlayTime);
+    },
+    [maxPlayTimeLimit]
+  );
+
   const filteredGames = useMemo(() => {
-    return initialGames.filter((game) => {
+    let games = initialGames.filter((game) => {
       if (!showExpansions && game.type === 'Expansion') return false;
       if (ownershipFilter === 'Owned' && game.ownership !== 'Owned') return false;
 
@@ -115,7 +137,17 @@ export default function GameGallery({ initialGames }: GameGalleryProps) {
       }
       return weightValueAsc(a) - weightValueAsc(b);
     });
-  }, [initialGames, playerCount, maxPlayTime, minWeight, sortBy, showExpansions, ownershipFilter]);
+
+    // Additional smart filter logic after basic filters
+    if (activeSmartFilterId) {
+      const activeTag = smartFilterTags.find((t) => t.id === activeSmartFilterId);
+      if (activeTag) {
+        games = games.filter(activeTag.filterFn);
+      }
+    }
+
+    return games;
+  }, [initialGames, playerCount, maxPlayTime, minWeight, sortBy, showExpansions, ownershipFilter, activeSmartFilterId, smartFilterTags]);
 
   const closePicker = useCallback(() => {
     setPickerVisible(false);
@@ -126,7 +158,6 @@ export default function GameGallery({ initialGames }: GameGalleryProps) {
   }, []);
 
   const pickOne = useCallback(() => {
-    console.log("🎲 pickOne clicked, filteredGames length:", filteredGames.length);
     if (filteredGames.length === 0) {
       window.alert("目前條件下沒有符合的遊戲");
       return;
@@ -168,14 +199,15 @@ export default function GameGallery({ initialGames }: GameGalleryProps) {
   }, [pickerOpen, closePicker]);
 
   return (
-    <main className="min-h-screen bg-gray-50">
-      <header className="border-b border-gray-200 bg-white px-6 py-4">
+    <main className="min-h-screen parchment-bg">
+      {/* Header */}
+      <header className="border-b border-grid-line bg-parchment-light px-6 py-4">
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-4">
           <div className="min-w-0">
-            <h1 className="text-xl font-bold tracking-tight text-gray-900">
+            <h1 className="font-heading text-xl font-bold tracking-wider text-ink">
               Board Game Collection
             </h1>
-            <p className="text-xs text-gray-500">
+            <p className="text-xs text-ink-muted font-body">
               {filteredGames.length} / {initialGames.length} 款
             </p>
           </div>
@@ -186,7 +218,6 @@ export default function GameGallery({ initialGames }: GameGalleryProps) {
                 const pwd = window.prompt("請輸入管理員密碼：");
                 if (pwd) {
                   setAdminPassword(pwd);
-                  // Persist to localStorage with a 30-day expiry
                   const token = {
                     password: pwd,
                     expiry: Date.now() + AUTH_DURATION_MS,
@@ -194,28 +225,38 @@ export default function GameGallery({ initialGames }: GameGalleryProps) {
                   localStorage.setItem(AUTH_TOKEN_KEY, JSON.stringify(token));
                 }
               }}
-              className="text-gray-400 hover:text-gray-600"
+              className="text-ink-muted hover:text-ink transition-colors"
             >
               {isAdmin ? '🔓' : '🔒'}
             </button>
             {isAdmin && (
-              <button
-                type="button"
-                onClick={() => {
-                  setAdminPassword("");
-                  localStorage.removeItem(AUTH_TOKEN_KEY);
-                }}
-                className="text-xs text-gray-400 hover:text-red-500 transition-colors"
-                title="鎖定 / 登出管理員"
-              >
-                鎖定
-              </button>
+              <>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAdminPassword("");
+                    localStorage.removeItem(AUTH_TOKEN_KEY);
+                  }}
+                  className="text-xs text-ink-muted hover:text-wax-red transition-colors"
+                  title="鎖定 / 登出管理員"
+                >
+                  鎖定
+                </button>
+                <button
+                  type="button"
+                  onClick={pickOne}
+                  className="btn-wax-seal rounded-lg px-4 py-2 text-xs"
+                >
+                  <span aria-hidden="true">🎲</span>
+                  幫我選
+                </button>
+              </>
             )}
             <button 
-                className="md:hidden p-2 text-gray-600"
-                onClick={() => setIsFilterExpanded(!isFilterExpanded)}
+              className="md:hidden p-2 text-ink-muted hover:text-ink"
+              onClick={() => setIsFilterExpanded(!isFilterExpanded)}
             >
-                ⚙️
+              ⚙️
             </button>
           </div>
         </div>
@@ -225,7 +266,7 @@ export default function GameGallery({ initialGames }: GameGalleryProps) {
               placeholder="BGG ID" 
               value={newBggId} 
               onChange={e => setNewBggId(e.target.value)}
-              className="border rounded-lg px-3 py-2 text-sm w-32"
+              className="input-euro rounded-lg px-3 py-2 text-sm w-32"
             />
             <button 
               disabled={isAdding}
@@ -239,7 +280,7 @@ export default function GameGallery({ initialGames }: GameGalleryProps) {
                   setIsAdding(false);
                   window.location.reload();
               }}
-              className="bg-black text-white px-4 py-2 rounded-lg text-sm"
+              className="btn-euro-primary rounded-lg px-4 py-2 text-sm"
             >
               {isAdding ? '處理中...' : '➕ 新增桌遊'}
             </button>
@@ -247,28 +288,32 @@ export default function GameGallery({ initialGames }: GameGalleryProps) {
         )}
       </header>
 
+      {/* Filter Bar */}
       <div className={`${isFilterExpanded ? 'block' : 'hidden'} md:block`}>
-          <FilterBar
-            playerCount={playerCount}
-            maxPlayTime={maxPlayTime}
-            maxPlayTimeLimit={maxPlayTimeLimit}
-            minWeight={minWeight}
-            sortBy={sortBy}
-            showExpansions={showExpansions}
-            ownershipFilter={ownershipFilter}
-            onSmartPick={pickOne}
-            onPlayerCountChange={setPlayerCount}
-            onMaxPlayTimeChange={setMaxPlayTime}
-            onMinWeightChange={setMinWeight}
-            onSortByChange={setSortBy}
-            onShowExpansionsChange={setShowExpansions}
-            onOwnershipFilterChange={setOwnershipFilter}
-          />
+        <FilterBar
+          playerCount={playerCount}
+          maxPlayTime={maxPlayTime}
+          maxPlayTimeLimit={maxPlayTimeLimit}
+          minWeight={minWeight}
+          sortBy={sortBy}
+          showExpansions={showExpansions}
+          ownershipFilter={ownershipFilter}
+          smartFilterTags={smartFilterTags}
+          activeSmartFilterId={activeSmartFilterId}
+          onSmartFilterClick={handleSmartFilterClick}
+          onPlayerCountChange={setPlayerCount}
+          onMaxPlayTimeChange={setMaxPlayTime}
+          onMinWeightChange={setMinWeight}
+          onSortByChange={setSortBy}
+          onShowExpansionsChange={setShowExpansions}
+          onOwnershipFilterChange={setOwnershipFilter}
+        />
       </div>
 
+      {/* Game Grid */}
       {filteredGames.length === 0 ? (
         <div className="flex min-h-[50vh] items-center justify-center p-8">
-          <p className="text-sm text-gray-500">沒有符合篩選條件的遊戲。</p>
+          <p className="text-sm text-ink-muted">沒有符合篩選條件的遊戲。</p>
         </div>
       ) : (
         <section className="mx-auto grid max-w-7xl grid-cols-1 gap-6 p-6 sm:grid-cols-2 sm:p-8 lg:grid-cols-3 xl:grid-cols-4">
@@ -283,11 +328,12 @@ export default function GameGallery({ initialGames }: GameGalleryProps) {
         </section>
       )}
 
+      {/* Scroll to top */}
       {showScrollTop ? (
         <button
           type="button"
           onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
-          className="fixed bottom-4 right-4 h-11 w-11 rounded-full bg-white text-gray-700 shadow-lg"
+          className="fixed bottom-4 right-4 h-11 w-11 rounded-full bg-parchment text-ink shadow-euro border border-grid-line hover:border-brass transition-colors"
         >
           ↑
         </button>
@@ -296,19 +342,19 @@ export default function GameGallery({ initialGames }: GameGalleryProps) {
       {/* Picker Modal */}
       {pickerOpen && pickedGame && (
         <div
-          className={`fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 transition-opacity duration-200 ${
+          className={`fixed inset-0 z-50 flex items-center justify-center bg-ink/50 p-4 transition-opacity duration-200 ${
             pickerVisible ? "opacity-100" : "opacity-0"
           }`}
           onClick={closePicker}
         >
           <div
-            className={`max-h-[85vh] w-full max-w-md transform overflow-y-auto rounded-2xl bg-white p-6 shadow-2xl transition-all duration-200 ${
+            className={`max-h-[85vh] w-full max-w-md transform overflow-y-auto bg-parchment-light p-6 shadow-euro-lg transition-all duration-200 brass-border ${
               pickerVisible ? "scale-100" : "scale-95"
             }`}
             onClick={(e) => e.stopPropagation()}
           >
             {pickedGame.image && (
-              <div className="relative mb-4 aspect-[3/2] w-full overflow-hidden rounded-xl">
+              <div className="relative mb-4 aspect-[3/2] w-full overflow-hidden vintage-frame">
                 <Image
                   src={pickedGame.image}
                   alt={pickedGame.name}
@@ -318,38 +364,38 @@ export default function GameGallery({ initialGames }: GameGalleryProps) {
                 />
               </div>
             )}
-            <h2 className="text-xl font-bold text-gray-900">{pickedGame.chineseName || pickedGame.name}</h2>
+            <h2 className="font-heading text-xl font-bold text-ink">{pickedGame.chineseName || pickedGame.name}</h2>
             {pickedGame.chineseName && (
-              <p className="mt-1 text-sm text-gray-500">{pickedGame.name}</p>
+              <p className="mt-1 text-sm text-ink-muted">{pickedGame.name}</p>
             )}
-            <div className="mt-4 flex flex-wrap gap-3 text-sm text-gray-600">
+            <div className="mt-4 flex flex-wrap gap-3 text-sm text-ink-light">
               {pickedGame.minPlayers > 0 && pickedGame.maxPlayers > 0 && (
-                <span className="rounded-md bg-gray-100 px-2.5 py-1">
+                <span className="rounded-full border border-grid-line bg-parchment px-2.5 py-1">
                   👥 {pickedGame.minPlayers}-{pickedGame.maxPlayers}人
                 </span>
               )}
               {pickedGame.playTime ? (
-                <span className="rounded-md bg-gray-100 px-2.5 py-1">⏱ {pickedGame.playTime}分</span>
+                <span className="rounded-full border border-grid-line bg-parchment px-2.5 py-1">⏱ {pickedGame.playTime}分</span>
               ) : null}
               {pickedGame.complexity ? (
-                <span className="rounded-md bg-gray-100 px-2.5 py-1">⚖ {pickedGame.complexity.toFixed(1)}</span>
+                <span className="rounded-full border border-grid-line bg-parchment px-2.5 py-1">⚖ {pickedGame.complexity.toFixed(1)}</span>
               ) : null}
               {pickedGame.rating ? (
-                <span className="rounded-md bg-gray-100 px-2.5 py-1">⭐ {pickedGame.rating.toFixed(1)}</span>
+                <span className="rounded-full border border-grid-line bg-parchment px-2.5 py-1">⭐ {pickedGame.rating.toFixed(1)}</span>
               ) : null}
             </div>
             <div className="mt-6 flex gap-3">
               <button
                 type="button"
                 onClick={repick}
-                className="flex-1 rounded-xl bg-violet-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-violet-500 active:scale-[0.98]"
+                className="btn-euro-primary flex-1 rounded-lg px-4 py-2.5 text-sm"
               >
                 🎲 換一個
               </button>
               <button
                 type="button"
                 onClick={closePicker}
-                className="flex-1 rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 shadow-sm transition hover:bg-gray-50 active:scale-[0.98]"
+                className="btn-euro flex-1 rounded-lg px-4 py-2.5 text-sm"
               >
                 關閉
               </button>
