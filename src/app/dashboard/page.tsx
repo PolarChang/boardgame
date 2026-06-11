@@ -162,7 +162,7 @@ export default function DashboardClient() {
       <header className="mb-8 flex items-center justify-between flex-wrap gap-4">
         <div>
           <h1 className="font-heading text-2xl font-bold tracking-wider text-ink">
-            戰績帳簿
+            戰績表
           </h1>
           <p className="mt-1 text-sm text-ink-muted font-body">
             Game Ledger
@@ -316,6 +316,7 @@ export default function DashboardClient() {
                 <th>日期</th>
                 <th>遊戲</th>
                 <th>玩家</th>
+                <th>分數</th>
                 <th>獲勝者</th>
                 <th>地點</th>
                 <th>局照</th>
@@ -325,7 +326,7 @@ export default function DashboardClient() {
             <tbody>
               {playLogs.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="text-center text-ink-muted py-8">
+                  <td colSpan={8} className="text-center text-ink-muted py-8">
                     尚無遊玩紀錄，點擊「新增遊玩紀錄」開始記錄吧！
                   </td>
                 </tr>
@@ -360,6 +361,25 @@ export default function DashboardClient() {
                                 </span>
                               )}
                               {i < log.players.length - 1 ? "，" : ""}
+                            </span>
+                          ))}
+                        </div>
+                      </td>
+                      <td className="whitespace-nowrap">
+                        <div className="flex flex-col gap-0.5">
+                          {log.players.map((p, i) => (
+                            <span
+                              key={i}
+                              className={`text-xs tabular-nums ${
+                                p.isWinner
+                                  ? "font-bold text-ink"
+                                  : "text-ink-light"
+                              }`}
+                            >
+                              {p.score}
+                              {p.isWinner && (
+                                <span className="ml-0.5 text-wax-red">👑</span>
+                              )}
                             </span>
                           ))}
                         </div>

@@ -52,7 +52,6 @@ export async function POST(req: NextRequest) {
       );
     } catch (error) {
       console.error('Failed to create player scores:', error);
-      // Attempt to clean up
       await notionService.deletePlaySession(playSession.id);
       return NextResponse.json(
         { error: 'Failed to create player scores' },
@@ -60,11 +59,37 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // Invalidate dashboard cache so new data shows up immediately
+    notionService.invalidateDashboardCache();
+
     return NextResponse.json({ id: playSession.id }, { status: 201 });
   } catch (error) {
     console.error('Internal Server Error:', error);
     return NextResponse.json(
       { error: 'Internal Server Error' },
+      { status: 500 }
+    );
+  }
+}
+
+export async function DELETE(req: NextRequest) {
+  try {
+    const { searchParams } = new URL(req.url);
+    const id = searchParams.get('id');
+    if (!id) {
+      return NextResponse.json({ error: 'Missing id parameter' }, { status: 400 });
+    }
+
+    await notionService.deletePlaySession(id);
+
+    // Invalidate dashboard cache
+    notionService.invalidateDashboardCache();
+
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error('Failed to delete play session:', error);
+    return NextResponse.json(
+      { error: 'Failed to delete play session' },
       { status: 500 }
     );
   }

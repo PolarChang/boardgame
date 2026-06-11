@@ -1,6 +1,7 @@
 import { Client } from "@notionhq/client";
 import type { PageObjectResponse } from "@notionhq/client/build/src/api-endpoints";
 import type { NotionGame, Player, PlayRecord, PlayLog, PlayLogPlayer } from "./types";
+import { getCached, setCache, invalidateCache } from "./notion-cache";
 
 let notionClient: Client | null = null;
 
@@ -147,33 +148,28 @@ function parseNotionPage(page: PageObjectResponse): NotionGame | null {
   };
 }
 
-export async function getGamesFromNotion(): Promise<NotionGame[]> {
+export async function getGamesFromNotion(bypassCache = false): Promise<NotionGame[]> {
   const databaseId = process.env.NOTION_DATABASE_ID;
   if (!databaseId) {
     throw new Error("NOTION_DATABASE_ID environment variable is not set");
   }
 
-  const notion = getNotionClient();
+  // Force cache refresh if requested
+  if (bypassCache) {
+    invalidateCache("notion:main_games");
+  }
+
+  // Use cached version with page_size=100 for speed
+  const pages = await queryAllPagesCached(databaseId, undefined, "notion:main_games");
+
   const games: NotionGame[] = [];
-  let cursor: string | undefined;
 
-  do {
-    const response = await notion.databases.query({
-      database_id: databaseId,
-      start_cursor: cursor,
-    });
-
-    for (const page of response.results) {
-      if (page.object !== "page" || !("properties" in page)) continue;
-
-      const game = parseNotionPage(page);
-      if (game) {
-        games.push(game);
-      }
+  for (const page of pages) {
+    const game = parseNotionPage(page);
+    if (game) {
+      games.push(game);
     }
-
-    cursor = response.has_more ? (response.next_cursor ?? undefined) : undefined;
-  } while (cursor);
+  }
 
   return games.sort((a, b) => a.name.localeCompare(b.name));
 }
@@ -385,8 +381,70 @@ export async function deletePlaySession(playId: string): Promise<void> {
 }
 
 /**
+ * Query all pages from a Notion database, with caching support.
+ * Uses maximum page_size (100) to reduce round-trips.
+ */
+async function queryAllPagesCached(
+  databaseId: string,
+  params?: Record<string, unknown>,
+  cacheKey?: string
+): Promise<PageObjectResponse[]> {
+  // Check cache first
+  if (cacheKey) {
+    const cached = getCached<PageObjectResponse[]>(cacheKey);
+    if (cached) return cached;
+  }
+
+  const notion = getNotionClient();
+  const results: PageObjectResponse[] = [];
+  let cursor: string | undefined;
+
+  do {
+    const response = await notion.databases.query({
+      database_id: databaseId,
+      start_cursor: cursor,
+      page_size: 100, // Max per page — fewer round trips
+      ...(params ?? {}),
+    });
+
+    for (const page of response.results) {
+      if (page.object !== "page" || !("properties" in page)) continue;
+      results.push(page as PageObjectResponse);
+    }
+
+    cursor = response.has_more ? (response.next_cursor ?? undefined) : undefined;
+  } while (cursor);
+
+  // Store in cache
+  if (cacheKey) {
+    setCache(cacheKey, results);
+  }
+
+  return results;
+}
+
+const CACHE_KEY_PLAYS = "notion:plays";
+const CACHE_KEY_SCORES = "notion:scores";
+const CACHE_KEY_PLAYERS = "notion:players";
+const CACHE_KEY_GAMES = "notion:games";
+const CACHE_KEY_MAIN_GAMES = "notion:main_games";
+
+/**
+ * Invalidate dashboard-related caches (after create/delete).
+ */
+export function invalidateDashboardCache(): void {
+  invalidateCache("notion:plays");
+  invalidateCache("notion:scores");
+  invalidateCache("notion:players");
+  invalidateCache("notion:games");
+}
+
+/**
  * Get all play logs (detailed view with player scores, player names, game names).
- * Returns PlayLog[] for the Dashboard.
+ * Optimized with:
+ *  - Parallel fetching of all 4 databases
+ *  - In-memory caching (default 30s TTL)
+ *  - Max page_size (100) for fewer API round-trips
  */
 export async function getDetailedPlayLogs(): Promise<PlayLog[]> {
   const playsDbId = process.env.NOTION_PLAYS_DB_ID;
@@ -398,35 +456,38 @@ export async function getDetailedPlayLogs(): Promise<PlayLog[]> {
   if (!playerScoresDbId) throw new Error("NOTION_PLAYER_SCORES_DB_ID is not set");
   if (!playersDbId) throw new Error("NOTION_PLAYERS_DB_ID is not set");
 
-  const notion = getNotionClient();
+  // Fetch all 4 databases in PARALLEL (with caching)
+  const fetchPlays = queryAllPagesCached(playsDbId, undefined, CACHE_KEY_PLAYS);
+  const fetchScores = queryAllPagesCached(playerScoresDbId, undefined, CACHE_KEY_SCORES);
+  const fetchPlayers = queryAllPagesCached(playersDbId, undefined, CACHE_KEY_PLAYERS);
+  const fetchGames = gamesDbId
+    ? queryAllPagesCached(gamesDbId, undefined, CACHE_KEY_GAMES)
+    : Promise.resolve([] as PageObjectResponse[]);
 
-  // 1. Fetch all plays
-  const playPages = await queryAllPages(playsDbId);
+  const [playPages, scorePages, playerPages, gamePages] = await Promise.all([
+    fetchPlays,
+    fetchScores,
+    fetchPlayers,
+    fetchGames,
+  ]);
+
   if (playPages.length === 0) return [];
 
-  // 2. Fetch all player scores
-  const scorePages = await queryAllPages(playerScoresDbId);
-
-  // 3. Fetch all players (name lookup)
-  const playerPages = await queryAllPages(playersDbId);
+  // Build lookup maps (O(n) — fast)
   const playerNameMap = new Map<string, string>();
   for (const p of playerPages) {
     playerNameMap.set(p.id, extractPageTitle(p));
   }
 
-  // 4. Fetch all games (name lookup)
-  let gameNameMap = new Map<string, string>();
-  if (gamesDbId) {
-    const gamePages = await queryAllPages(gamesDbId);
-    for (const g of gamePages) {
-      const props = g.properties;
-      const name = extractTitle(props["Game Title"]);
-      const chineseName = extractTitleOrRichText(props["Chinese Name"]);
-      gameNameMap.set(g.id, (chineseName || name));
-    }
+  const gameNameMap = new Map<string, string>();
+  for (const g of gamePages) {
+    const props = g.properties;
+    const name = extractTitle(props["Game Title"]);
+    const chineseName = extractTitleOrRichText(props["Chinese Name"]);
+    gameNameMap.set(g.id, (chineseName || name));
   }
 
-  // 5. Build scores lookup by playId
+  // Build scores lookup by playId
   const scoresByPlayId = new Map<string, PageObjectResponse[]>();
   for (const sp of scorePages) {
     const props = sp.properties;
@@ -438,7 +499,7 @@ export async function getDetailedPlayLogs(): Promise<PlayLog[]> {
     }
   }
 
-  // 6. Build PlayLog array
+  // Build PlayLog array
   const logs: PlayLog[] = [];
 
   for (const playPage of playPages) {
@@ -451,14 +512,13 @@ export async function getDetailedPlayLogs(): Promise<PlayLog[]> {
     const location = extractSelect(props[PLAYS_LOCATION_PROP]);
     const notes = extractRichText(props[PLAYS_NOTES_PROP]);
 
-    // Get scores for this play
     const relatedScores = scoresByPlayId.get(playId) || [];
 
     const players: PlayLogPlayer[] = [];
     for (const sp of relatedScores) {
       const spProps = sp.properties;
-      const playerIds = extractRelationIds(spProps[PLAYER_SCORES_PLAYER_PROP]);
-      const playerId = playerIds[0] || "";
+      const pIds = extractRelationIds(spProps[PLAYER_SCORES_PLAYER_PROP]);
+      const playerId = pIds[0] || "";
       const score = extractNumber(spProps[PLAYER_SCORES_SCORE_PROP]);
       const isWinner = extractCheckbox(spProps[PLAYER_SCORES_IS_WINNER_PROP]);
       const playerName = playerNameMap.get(playerId) || "Unknown";
@@ -477,15 +537,18 @@ export async function getDetailedPlayLogs(): Promise<PlayLog[]> {
       gameName,
       date,
       location: location ?? undefined,
-      durationMinutes: 0, // Not stored in current schema
+      durationMinutes: 0,
       players,
-      endgamePhotoUrl: undefined, // Not stored in current schema
+      endgamePhotoUrl: undefined,
       notes: notes || undefined,
     });
   }
 
   return logs.sort((a, b) => b.date.localeCompare(a.date));
 }
+
+/** Alias to invalidate dashboard cache from API route */
+export { invalidateDashboardCache as clearDashboardCache };
 
 export async function getGamePlays(gameId?: string): Promise<PlayRecord[]> {
   const databaseId = process.env.NOTION_PLAYS_DB_ID;
@@ -540,7 +603,7 @@ export async function getGamePlays(gameId?: string): Promise<PlayRecord[]> {
         : { results: [] };
 
       const playerIds: string[] = [];
-      const scoreTexts: string[] = [];
+      const rawScores: { playerId: string; score: number; isWinner: boolean }[] = [];
 
       for (const sp of scorePages.results) {
         if (!("properties" in sp)) continue;
@@ -551,17 +614,22 @@ export async function getGamePlays(gameId?: string): Promise<PlayRecord[]> {
 
         for (const pid of pIds) {
           if (!playerIds.includes(pid)) playerIds.push(pid);
-          // We'll reconstruct score text later
-          const playerName = pid; // placeholder, resolved below
-          scoreTexts.push(`${pid}:${score}${isWinner ? "[贏家]" : ""}`);
+          rawScores.push({ playerId: pid, score, isWinner });
         }
       }
-
-      const scores = scoreTexts.join(", ") || extractRichText(props[PLAYS_SCORES_PROP]);
 
       const players = (await Promise.all(playerIds.map(getPlayerById))).filter(
         (p) => Boolean(p.name)
       );
+
+      const playerNameMap = new Map(players.map((p) => [p.id, p.name]));
+
+      // Build score text using resolved player names, not raw page IDs
+      const scoreTexts = rawScores.map(
+        ({ playerId, score, isWinner }) =>
+          `${playerNameMap.get(playerId) || "未知"}: ${score}${isWinner ? " 👑" : ""}`
+      );
+      const scores = scoreTexts.join(", ") || extractRichText(props[PLAYS_SCORES_PROP]);
 
       return {
         id: page.id,
