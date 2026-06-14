@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
 import type { PlayLog, PlayLogPlayer } from "@/lib/types";
 import AddPlayLogModal from "@/components/AddPlayLogModal";
@@ -24,6 +24,14 @@ function getWinners(log: PlayLog): PlayLogPlayer[] {
   return log.players.filter((p) => p.isWinner);
 }
 
+/** Format a player's score for display – respects multi-score fields */
+function formatPlayerScore(player: PlayLogPlayer): string {
+  if (player.scores && player.scores.length > 0) {
+    return player.scores.map((s) => `${s.label}:${s.value}`).join(" / ");
+  }
+  return String(player.score);
+}
+
 // Player stats aggregation
 interface PlayerStats {
   name: string;
@@ -32,12 +40,132 @@ interface PlayerStats {
   totalScore: number;
 }
 
+const AUTH_TOKEN_KEY = "boardgame_auth_token";
+const AUTH_DURATION_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
+
 export default function DashboardClient() {
   const [playLogs, setPlayLogs] = useState<PlayLog[]>([]);
   const [expandedLogId, setExpandedLogId] = useState<string | null>(null);
   const [showAddModal, setShowAddModal] = useState(false);
   const [dataReady, setDataReady] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Admin auth (shared with game wall via localStorage)
+  const [adminPassword, setAdminPassword] = useState("");
+  const isAdmin = adminPassword !== "";
+  const restoredFromStorage = useRef(false);
+
+  // Restore auth token on mount
+  useEffect(() => {
+    if (restoredFromStorage.current) return;
+    try {
+      const raw = localStorage.getItem(AUTH_TOKEN_KEY);
+      if (raw) {
+        const data = JSON.parse(raw);
+        if (data.expiry > Date.now() && data.password) {
+          setAdminPassword(data.password);
+        } else {
+          localStorage.removeItem(AUTH_TOKEN_KEY);
+        }
+      }
+    } catch {
+      localStorage.removeItem(AUTH_TOKEN_KEY);
+    }
+    restoredFromStorage.current = true;
+  }, []);
+
+  // Player management state
+  const [showPlayerManager, setShowPlayerManager] = useState(false);
+  const [playerList, setPlayerList] = useState<string[]>([]);
+  const [newPlayerName, setNewPlayerName] = useState("");
+
+  // Refresh player list from Notion API
+  const refreshPlayerList = useCallback(async () => {
+    try {
+      const res = await fetch("/api/players");
+      if (res.ok) {
+        const data = await res.json() as { id: string; name: string }[];
+        setPlayerList(data.map((p) => p.name));
+      }
+    } catch (err) {
+      console.error("Failed to fetch players:", err);
+    }
+  }, []);
+
+  // Load players on mount
+  useEffect(() => {
+    refreshPlayerList();
+  }, [refreshPlayerList]);
+
+  // Ensure admin is authenticated (same mechanism as game wall 🔒)
+  const ensureAdmin = useCallback(() => {
+    if (adminPassword) return true;
+    const pwd = window.prompt("請輸入管理員密碼：");
+    if (pwd) {
+      setAdminPassword(pwd);
+      const token = {
+        password: pwd,
+        expiry: Date.now() + AUTH_DURATION_MS,
+      };
+      localStorage.setItem(AUTH_TOKEN_KEY, JSON.stringify(token));
+      return true;
+    }
+    return false;
+  }, [adminPassword]);
+
+  // Add a new player to Notion via API
+  const handleAddPlayer = async () => {
+    const name = newPlayerName.trim();
+    if (!name) {
+      window.alert("請輸入玩家名稱。");
+      return;
+    }
+    if (!ensureAdmin()) return;
+
+    try {
+      const res = await fetch("/api/players", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, password: adminPassword }),
+      });
+      if (res.ok) {
+        setNewPlayerName("");
+        await refreshPlayerList();
+      } else {
+        window.alert("新增玩家失敗，請確認密碼正確。");
+      }
+    } catch {
+      window.alert("新增玩家失敗，請檢查網路連線。");
+    }
+  };
+
+  // Delete a player from Notion via API
+  const handleDeletePlayer = async (name: string) => {
+    if (!window.confirm(`確定從玩家庫移除「${name}」？`)) return;
+    if (!ensureAdmin()) return;
+
+    try {
+      // First get the player ID
+      const listRes = await fetch("/api/players");
+      if (!listRes.ok) return;
+      const players = await listRes.json() as { id: string; name: string }[];
+      const target = players.find((p) => p.name === name);
+      if (!target) return;
+
+      const res = await fetch("/api/players", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ playerId: target.id, password: adminPassword }),
+      });
+      if (res.ok) {
+        await refreshPlayerList();
+      } else {
+        window.alert("移除玩家失敗，請確認密碼正確。");
+      }
+    } catch {
+      window.alert("移除玩家失敗，請檢查網路連線。");
+    }
+  };
 
   // Fetch play logs from Notion API
   useEffect(() => {
@@ -168,13 +296,24 @@ export default function DashboardClient() {
             Game Ledger
           </p>
         </div>
-        <button
-          type="button"
-          onClick={() => setShowAddModal(true)}
-          className="btn-wax-seal rounded-lg px-5 py-2.5 text-sm"
-        >
-          ✚ 新增遊玩紀錄
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setShowPlayerManager(!showPlayerManager)}
+            className={`btn-euro rounded-lg px-4 py-2.5 text-sm ${
+              showPlayerManager ? "bg-brass/20 border-brass" : ""
+            }`}
+          >
+            👤 管理玩家
+          </button>
+          <button
+            type="button"
+            onClick={() => setShowAddModal(true)}
+            className="btn-wax-seal rounded-lg px-5 py-2.5 text-sm"
+          >
+            ✚ 新增遊玩紀錄
+          </button>
+        </div>
       </header>
 
       {/* Summary Cards */}
@@ -216,6 +355,74 @@ export default function DashboardClient() {
         </div>
       </div>
 
+      {/* Player Management Panel (collapsible) */}
+      {showPlayerManager && (
+        <section className="card-euro rounded-lg p-5 mb-8">
+          <h2 className="font-heading text-sm font-bold uppercase tracking-wider text-ink mb-4">
+            👤 玩家庫管理
+          </h2>
+
+          {/* Add new player */}
+          <div className="flex items-center gap-2 mb-4">
+            <input
+              type="text"
+              value={newPlayerName}
+              onChange={(e) => setNewPlayerName(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") handleAddPlayer();
+              }}
+              placeholder="輸入新玩家名稱..."
+              className="input-euro rounded-lg flex-1 text-sm"
+            />
+            <button
+              type="button"
+              onClick={handleAddPlayer}
+              className="btn-euro rounded-lg px-4 py-2 text-sm"
+            >
+              ➕ 新增
+            </button>
+          </div>
+
+          {/* Player list */}
+          <div className="flex flex-wrap gap-2">
+            {playerList.length === 0 ? (
+              <p className="text-xs text-ink-muted">尚無玩家資料，請先新增玩家。</p>
+            ) : (
+              playerList.map((name) => (
+                <div
+                  key={name}
+                  className="flex items-center gap-2 bg-parchment border border-grid-line rounded-lg px-3 py-1.5"
+                >
+                  <span className="text-sm text-ink">{name}</span>
+                  <button
+                    type="button"
+                    onClick={() => handleDeletePlayer(name)}
+                    className="text-ink-muted hover:text-wax-red transition-colors"
+                    aria-label={`移除 ${name}`}
+                  >
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      className="h-3.5 w-3.5"
+                      viewBox="0 0 20 20"
+                      fill="currentColor"
+                    >
+                      <path
+                        fillRule="evenodd"
+                        d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
+                        clipRule="evenodd"
+                      />
+                    </svg>
+                  </button>
+                </div>
+              ))
+            )}
+          </div>
+          <p className="mt-3 text-xs text-ink-muted">
+            玩家資料儲存在 Notion 的玩家資料庫。點擊「新增」需要輸入管理員密碼。
+          </p>
+        </section>
+      )}
+
       {/* Two column layout: Leaderboard + Game Frequency */}
       <div className="mb-8 grid grid-cols-1 gap-6 lg:grid-cols-2">
         {/* Player Leaderboard */}
@@ -242,12 +449,8 @@ export default function DashboardClient() {
                     </span>
                   </div>
                   <div className="flex items-center gap-4 text-xs text-ink-light shrink-0">
-                    <span>
-                      🏅 {stat.totalWins}勝
-                    </span>
-                    <span>
-                      {stat.totalPlays}局
-                    </span>
+                    <span>🏅 {stat.totalWins}勝</span>
+                    <span>{stat.totalPlays}局</span>
                     <span className="font-semibold text-ink">
                       {stat.totalPlays > 0
                         ? Math.round((stat.totalWins / stat.totalPlays) * 100)
@@ -280,12 +483,8 @@ export default function DashboardClient() {
                     </span>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between mb-1">
-                        <span className="text-sm text-ink truncate">
-                          {game.name}
-                        </span>
-                        <span className="text-xs text-ink-muted shrink-0 ml-2">
-                          {game.count}局
-                        </span>
+                        <span className="text-sm text-ink truncate">{game.name}</span>
+                        <span className="text-xs text-ink-muted shrink-0 ml-2">{game.count}局</span>
                       </div>
                       <div className="h-2 w-full bg-parchment-dark rounded-full overflow-hidden">
                         <div
@@ -336,29 +535,20 @@ export default function DashboardClient() {
                   const isExpanded = expandedLogId === log.id;
                   return (
                     <tr key={log.id}>
-                      <td className="font-mono text-xs whitespace-nowrap">
-                        {log.date}
-                      </td>
-                      <td className="font-semibold whitespace-nowrap">
-                        {log.gameName}
-                      </td>
+                      <td className="font-mono text-xs whitespace-nowrap">{log.date}</td>
+                      <td className="font-semibold whitespace-nowrap">{log.gameName}</td>
                       <td>
                         <div className="flex flex-wrap gap-1">
                           {log.players.map((p, i) => (
                             <span
                               key={i}
                               className={`text-xs ${
-                                p.isWinner
-                                  ? "font-bold text-ink"
-                                  : "text-ink-light"
+                                p.isWinner ? "font-bold text-ink" : "text-ink-light"
                               }`}
                             >
                               {p.name}
                               {p.factionOrColor && (
-                                <span className="text-ink-muted">
-                                  {" "}
-                                  ({p.factionOrColor})
-                                </span>
+                                <span className="text-ink-muted"> ({p.factionOrColor})</span>
                               )}
                               {i < log.players.length - 1 ? "，" : ""}
                             </span>
@@ -371,15 +561,11 @@ export default function DashboardClient() {
                             <span
                               key={i}
                               className={`text-xs tabular-nums ${
-                                p.isWinner
-                                  ? "font-bold text-ink"
-                                  : "text-ink-light"
+                                p.isWinner ? "font-bold text-ink" : "text-ink-light"
                               }`}
                             >
-                              {p.score}
-                              {p.isWinner && (
-                                <span className="ml-0.5 text-wax-red">👑</span>
-                              )}
+                              {formatPlayerScore(p)}
+                              {p.isWinner && <span className="ml-0.5 text-wax-red">👑</span>}
                             </span>
                           ))}
                         </div>
@@ -396,18 +582,12 @@ export default function DashboardClient() {
                           <span className="text-xs text-ink-muted">—</span>
                         )}
                       </td>
-                      <td className="text-xs text-ink-muted">
-                        {log.location || "—"}
-                      </td>
+                      <td className="text-xs text-ink-muted">{log.location || "—"}</td>
                       <td>
                         {log.endgamePhotoUrl ? (
                           <button
                             type="button"
-                            onClick={() =>
-                              setExpandedLogId(
-                                isExpanded ? null : log.id
-                              )
-                            }
+                            onClick={() => setExpandedLogId(isExpanded ? null : log.id)}
                             className="text-brass hover:text-brass-dark transition-colors text-xs font-semibold"
                           >
                             📷 檢視
@@ -419,11 +599,7 @@ export default function DashboardClient() {
                       <td>
                         <button
                           type="button"
-                          onClick={() => {
-                            setExpandedLogId(
-                              isExpanded ? null : log.id
-                            );
-                          }}
+                          onClick={() => setExpandedLogId(isExpanded ? null : log.id)}
                           className="text-xs text-ink-muted hover:text-ink transition-colors mr-2"
                         >
                           {isExpanded ? "▲ 收起" : "▼ 詳情"}
@@ -496,44 +672,47 @@ export default function DashboardClient() {
                           {p.isWinner && <WaxSeal size="xs" />}
                           <span
                             className={`text-sm ${
-                              p.isWinner
-                                ? "font-bold text-ink"
-                                : "text-ink-light"
+                              p.isWinner ? "font-bold text-ink" : "text-ink-light"
                             }`}
                           >
                             {p.name}
                           </span>
                           {p.factionOrColor && (
-                            <span className="text-xs text-ink-muted">
-                              ({p.factionOrColor})
+                            <span className="text-xs text-ink-muted">({p.factionOrColor})</span>
+                          )}
+                        </div>
+                        <div className="flex flex-col items-end">
+                          {p.scores && p.scores.length > 0 ? (
+                            p.scores.map((s, si) => (
+                              <span
+                                key={si}
+                                className={`font-heading text-sm ${
+                                  p.isWinner ? "font-bold text-wax-red" : "text-ink"
+                                }`}
+                              >
+                                {s.label}: {s.value}
+                              </span>
+                            ))
+                          ) : (
+                            <span
+                              className={`font-heading text-base ${
+                                p.isWinner ? "font-bold text-wax-red" : "text-ink"
+                              }`}
+                            >
+                              {p.score} 分
                             </span>
                           )}
                         </div>
-                        <span
-                          className={`font-heading text-base ${
-                            p.isWinner ? "font-bold text-wax-red" : "text-ink"
-                          }`}
-                        >
-                          {p.score} 分
-                        </span>
                       </div>
                     ))}
                   </div>
 
                   {/* Notes & metadata */}
                   <div className="mt-4 space-y-1 text-xs text-ink-light">
-                    {log.durationMinutes > 0 && (
-                      <p>
-                        ⏱ 遊戲時長：{log.durationMinutes} 分鐘
-                      </p>
-                    )}
-                    {log.location && (
-                      <p>📍 地點：{log.location}</p>
-                    )}
+                    {log.durationMinutes > 0 && <p>⏱ 遊戲時長：{log.durationMinutes} 分鐘</p>}
+                    {log.location && <p>📍 地點：{log.location}</p>}
                     {log.notes && (
-                      <p className="italic text-ink-muted mt-2">
-                        &ldquo;{log.notes}&rdquo;
-                      </p>
+                      <p className="italic text-ink-muted mt-2">&ldquo;{log.notes}&rdquo;</p>
                     )}
                   </div>
                 </div>

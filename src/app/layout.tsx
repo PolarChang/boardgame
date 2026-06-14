@@ -58,7 +58,7 @@ export default function RootLayout({
                 href="/dashboard"
                 className="rounded-lg px-3 py-1.5 text-sm font-semibold text-ink-light transition hover:bg-brass/10 hover:text-ink"
               >
-                戰績帳簿
+                戰績表
               </Link>
             </nav>
           </div>

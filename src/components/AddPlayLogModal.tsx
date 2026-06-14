@@ -2,8 +2,15 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
-import type { PlayLogPlayer } from "@/lib/types";
+import type { PlayLogPlayer, PlayerScoreEntry } from "@/lib/types";
 import { savePlayLog, getPlayLogs } from "@/lib/playlog-storage";
+import { getScoreFieldsFromGamesList } from "@/lib/game-score-config";
+
+interface GameApiItem {
+  pageId: string;
+  name: string;
+  chineseName?: string;
+}
 
 interface AddPlayLogModalProps {
   onClose: () => void;
@@ -12,33 +19,22 @@ interface AddPlayLogModalProps {
 
 interface PlayerFormEntry {
   name: string;
+  /** Single score – used when game has no multi-score config */
   score: number;
+  /** Multi-score values – used when game has scoreFields config */
+  scores: PlayerScoreEntry[];
   factionOrColor: string;
   isWinner: boolean;
 }
 
 function emptyPlayer(): PlayerFormEntry {
-  return { name: "", score: 0, factionOrColor: "", isWinner: false };
+  return { name: "", score: 0, scores: [], factionOrColor: "", isWinner: false };
 }
 
 function todayISO(): string {
   const d = new Date();
   return d.toISOString().split("T")[0];
 }
-
-// Known game list (can be expanded)
-const KNOWN_GAMES = [
-  "Lisboa",
-  "Food Chain Magnate",
-  "The Great Zimbabwe",
-  "On Mars",
-  "Wingspan",
-  " Brass: Birmingham",
-  "Gaia Project",
-  "Terraforming Mars",
-  "Gloomhaven",
-  "Pandemic Legacy",
-];
 
 export default function AddPlayLogModal({
   onClose,
@@ -56,15 +52,79 @@ export default function AddPlayLogModal({
   const [endgamePhotoBase64, setEndgamePhotoBase64] = useState<string | null>(
     null
   );
-  const [gameSuggestion, setGameSuggestion] = useState<string[]>([]);
+  const [gameSuggestion, setGameSuggestion] = useState<GameApiItem[]>([]);
+  const [allGames, setAllGames] = useState<GameApiItem[]>([]);
+  const [gamesLoading, setGamesLoading] = useState(true);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Game name autocomplete
+  // Player library for autocomplete
+  const [playerLibrary, setPlayerLibrary] = useState<string[]>([]);
+  const [activePlayerFocusIdx, setActivePlayerFocusIdx] = useState<number | null>(null);
+  const [playersLoading, setPlayersLoading] = useState(true);
+
+  // Fetch games from API (same source as game wall) on mount
+  useEffect(() => {
+    async function fetchGames() {
+      try {
+        const res = await fetch("/api/games");
+        if (res.ok) {
+          const data = (await res.json()) as GameApiItem[];
+          setAllGames(data);
+        }
+      } catch (err) {
+        console.error("Failed to fetch games:", err);
+      } finally {
+        setGamesLoading(false);
+      }
+    }
+    fetchGames();
+  }, []);
+
+  // Load players from Notion API on mount
+  useEffect(() => {
+    async function fetchPlayers() {
+      try {
+        const res = await fetch("/api/players");
+        if (res.ok) {
+          const data = (await res.json()) as { id: string; name: string }[];
+          setPlayerLibrary(data.map((p) => p.name));
+        }
+      } catch (err) {
+        console.error("Failed to fetch players:", err);
+      } finally {
+        setPlayersLoading(false);
+      }
+    }
+    fetchPlayers();
+  }, []);
+
+  // Determine score fields based on selected game (from Notion "Score Fields" property)
+  const scoreFields = useMemo(() => {
+    if (!gameName.trim() || allGames.length === 0) return null;
+    return getScoreFieldsFromGamesList(allGames, gameName.trim());
+  }, [gameName, allGames]);
+
+  // When game changes, re-init players' scores to match the new scoreFields
+  useEffect(() => {
+    setPlayers((prev) =>
+      prev.map((p) => ({
+        ...p,
+        scores: scoreFields
+          ? scoreFields.map((label) => ({ label, value: 0 }))
+          : [],
+      }))
+    );
+  }, [scoreFields]);
+
+  // Game name autocomplete from Notion game list
   const handleGameNameChange = (value: string) => {
     setGameName(value);
     if (value.length > 0) {
-      const filtered = KNOWN_GAMES.filter((g) =>
-        g.toLowerCase().includes(value.toLowerCase())
+      const lower = value.toLowerCase();
+      const filtered = allGames.filter(
+        (g) =>
+          g.name.toLowerCase().includes(lower) ||
+          (g.chineseName ?? "").toLowerCase().includes(lower)
       );
       setGameSuggestion(filtered);
     } else {
@@ -72,9 +132,32 @@ export default function AddPlayLogModal({
     }
   };
 
-  const selectGame = (name: string) => {
-    setGameName(name);
+  const selectGame = (item: GameApiItem) => {
+    setGameName(item.name);
     setGameSuggestion([]);
+  };
+
+  // Player name autocomplete helpers
+  const playerSuggestions = useMemo(() => {
+    if (activePlayerFocusIdx === null) return [];
+    const currentName = players[activePlayerFocusIdx]?.name || "";
+    if (currentName.length === 0) return playerLibrary.slice(0, 20);
+    return playerLibrary.filter(
+      (p) =>
+        p.toLowerCase().includes(currentName.toLowerCase()) &&
+        p.toLowerCase() !== currentName.toLowerCase()
+    );
+  }, [players, activePlayerFocusIdx, playerLibrary]);
+
+  const selectPlayerName = (name: string) => {
+    if (activePlayerFocusIdx !== null) {
+      setPlayers((prev) =>
+        prev.map((p, i) =>
+          i === activePlayerFocusIdx ? { ...p, name } : p
+        )
+      );
+      setActivePlayerFocusIdx(null);
+    }
   };
 
   // Players handlers
@@ -90,6 +173,18 @@ export default function AddPlayLogModal({
   const updatePlayer = (idx: number, updates: Partial<PlayerFormEntry>) => {
     setPlayers((prev) =>
       prev.map((p, i) => (i === idx ? { ...p, ...updates } : p))
+    );
+  };
+
+  const updatePlayerScore = (playerIdx: number, scoreIdx: number, value: number) => {
+    setPlayers((prev) =>
+      prev.map((p, i) => {
+        if (i !== playerIdx || !p.scores) return p;
+        const updatedScores = p.scores.map((s, si) =>
+          si === scoreIdx ? { ...s, value } : s
+        );
+        return { ...p, scores: updatedScores };
+      })
     );
   };
 
@@ -136,7 +231,8 @@ export default function AddPlayLogModal({
 
     const playLogPlayers: PlayLogPlayer[] = validPlayers.map((p) => ({
       name: p.name.trim(),
-      score: p.score,
+      score: scoreFields ? 0 : p.score,
+      scores: scoreFields && p.scores ? p.scores : undefined,
       factionOrColor: p.factionOrColor.trim() || undefined,
       isWinner: p.isWinner,
     }));
@@ -191,7 +287,7 @@ export default function AddPlayLogModal({
         {/* Scrollable Form Body */}
         <div className="overflow-auto flex-grow p-6">
           <div className="space-y-6">
-            {/* Game Name with Autocomplete */}
+            {/* Game Name with Autocomplete from Notion */}
             <div className="relative">
               <label className="mb-1.5 block font-heading text-xs font-semibold uppercase tracking-wider text-ink-light">
                 遊戲名稱 <span className="text-wax-red">*</span>
@@ -200,21 +296,26 @@ export default function AddPlayLogModal({
                 type="text"
                 value={gameName}
                 onChange={(e) => handleGameNameChange(e.target.value)}
-                placeholder="輸入或選擇遊戲..."
+                placeholder={gamesLoading ? "載入遊戲清單中..." : "輸入或從下拉選單選擇..."}
                 className="input-euro w-full rounded-lg"
               />
               {gameSuggestion.length > 0 && (
                 <ul className="absolute z-10 mt-1 w-full bg-parchment border border-grid-line rounded-lg shadow-euro max-h-40 overflow-y-auto">
-                  {gameSuggestion.map((name) => (
+                  {gameSuggestion.map((item) => (
                     <li
-                      key={name}
-                      onClick={() => selectGame(name)}
+                      key={item.pageId}
+                      onClick={() => selectGame(item)}
                       className="px-3 py-2 text-sm text-ink hover:bg-brass/10 cursor-pointer transition-colors"
                     >
-                      {name}
+                      {item.chineseName ? `${item.chineseName} (${item.name})` : item.name}
                     </li>
                   ))}
                 </ul>
+              )}
+              {scoreFields && (
+                <p className="mt-1 text-xs text-euro-blue">
+                  此遊戲使用多項分數欄位：{scoreFields.join("、")}
+                </p>
               )}
             </div>
 
@@ -266,31 +367,82 @@ export default function AddPlayLogModal({
               <label className="mb-1.5 block font-heading text-xs font-semibold uppercase tracking-wider text-ink-light">
                 參與玩家 <span className="text-wax-red">*</span>
               </label>
+              <p className="text-xs text-ink-muted -mt-2">
+                輸入名稱時會自動從玩家庫建議，新名稱會自動加入玩家庫
+              </p>
               {players.map((player, idx) => (
                 <div
                   key={idx}
-                  className="flex flex-wrap items-center gap-2 bg-parchment border border-grid-line rounded-lg p-3"
+                  className="flex flex-wrap items-start gap-2 bg-parchment border border-grid-line rounded-lg p-3 relative"
                 >
-                  <input
-                    type="text"
-                    value={player.name}
-                    onChange={(e) =>
-                      updatePlayer(idx, { name: e.target.value })
-                    }
-                    placeholder="玩家名稱"
-                    className="input-euro rounded flex-1 min-w-[100px] text-sm"
-                  />
-                  <input
-                    type="number"
-                    value={player.score}
-                    onChange={(e) =>
-                      updatePlayer(idx, {
-                        score: parseInt(e.target.value) || 0,
-                      })
-                    }
-                    placeholder="分數"
-                    className="input-euro rounded w-20 text-sm"
-                  />
+                  {/* Player name with autocomplete */}
+                  <div className="relative flex-1 min-w-[120px]">
+                    <input
+                      type="text"
+                      value={player.name}
+                      onChange={(e) =>
+                        updatePlayer(idx, { name: e.target.value })
+                      }
+                      onFocus={() => setActivePlayerFocusIdx(idx)}
+                      onBlur={() =>
+                        // Delay hiding so click on suggestion works
+                        setTimeout(() => setActivePlayerFocusIdx(null), 150)
+                      }
+                      placeholder="玩家名稱"
+                      className="input-euro rounded w-full text-sm"
+                    />
+                    {activePlayerFocusIdx === idx &&
+                      playerSuggestions.length > 0 && (
+                        <ul className="absolute z-20 mt-0 w-full bg-parchment border border-grid-line rounded-b-lg shadow-euro max-h-32 overflow-y-auto">
+                          {playerSuggestions.map((name) => (
+                            <li
+                              key={name}
+                              onMouseDown={(e) => {
+                                e.preventDefault();
+                                selectPlayerName(name);
+                              }}
+                              className="px-3 py-1.5 text-sm text-ink hover:bg-brass/10 cursor-pointer transition-colors"
+                            >
+                              {name}
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                  </div>
+
+                  {/* Score(s) */}
+                  {scoreFields && player.scores ? (
+                    <div className="flex flex-wrap gap-2 items-center">
+                      {player.scores.map((s, si) => (
+                        <div key={si} className="flex flex-col items-start">
+                          <span className="text-[10px] text-ink-muted leading-tight mb-0.5">
+                            {s.label}
+                          </span>
+                          <input
+                            type="number"
+                            value={s.value}
+                            onChange={(e) =>
+                              updatePlayerScore(idx, si, parseInt(e.target.value) || 0)
+                            }
+                            className="input-euro rounded w-16 text-sm"
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <input
+                      type="number"
+                      value={player.score}
+                      onChange={(e) =>
+                        updatePlayer(idx, {
+                          score: parseInt(e.target.value) || 0,
+                        })
+                      }
+                      placeholder="分數"
+                      className="input-euro rounded w-20 text-sm"
+                    />
+                  )}
+
                   <input
                     type="text"
                     value={player.factionOrColor}
@@ -302,7 +454,7 @@ export default function AddPlayLogModal({
                     placeholder="陣營/顏色"
                     className="input-euro rounded w-24 text-sm"
                   />
-                  <label className="flex items-center gap-1 text-xs text-ink-light cursor-pointer shrink-0">
+                  <label className="flex items-center gap-1 text-xs text-ink-light cursor-pointer shrink-0 pt-1">
                     <input
                       type="checkbox"
                       checked={player.isWinner}
@@ -317,7 +469,7 @@ export default function AddPlayLogModal({
                     <button
                       type="button"
                       onClick={() => removePlayer(idx)}
-                      className="text-ink-muted hover:text-wax-red transition-colors p-1"
+                      className="text-ink-muted hover:text-wax-red transition-colors p-1 shrink-0"
                       aria-label="移除玩家"
                     >
                       <svg

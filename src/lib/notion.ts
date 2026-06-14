@@ -95,6 +95,13 @@ function extractRelationIds(
   return prop.relation.map((r) => r.id).filter(Boolean);
 }
 
+function extractMultiSelect(
+  prop: PageObjectResponse["properties"][string] | undefined
+): string[] {
+  if (!prop || prop.type !== "multi_select") return [];
+  return prop.multi_select.map((item) => item.name).filter(Boolean);
+}
+
 function extractCheckbox(
   prop: PageObjectResponse["properties"][string] | undefined
 ): boolean {
@@ -145,6 +152,7 @@ function parseNotionPage(page: PageObjectResponse): NotionGame | null {
     rating: extractNumber(props["BGG Rating"]),
     playCount: extractNumber(props["Play Count"]),
     bggLink: extractUrl(props["BGG Link"]),
+    scoreFields: extractMultiSelect(props["Score Fields"]),
   };
 }
 
@@ -247,6 +255,15 @@ export async function createPlayer(name: string): Promise<Player> {
   }
 
   return { id: page.id, name };
+}
+
+/** Delete a player by page ID */
+export async function deletePlayer(playerId: string): Promise<void> {
+  const notion = getNotionClient();
+  await notion.pages.update({
+    page_id: playerId,
+    archived: true,
+  });
 }
 
 /**

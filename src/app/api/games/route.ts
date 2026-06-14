@@ -1,6 +1,27 @@
 import { NextRequest, NextResponse } from "next/server";
 import { Client } from "@notionhq/client";
 import { XMLParser } from "fast-xml-parser";
+import { getGamesFromNotion } from "@/lib/notion";
+
+/** GET: return list of all game names from Notion (same source as game wall) */
+export async function GET() {
+  try {
+    const games = await getGamesFromNotion();
+    const gameNames = games.map((g) => ({
+      pageId: g.pageId,
+      name: g.name,
+      chineseName: g.chineseName,
+      scoreFields: g.scoreFields,
+    })).sort((a, b) => a.name.localeCompare(b.name));
+    return NextResponse.json(gameNames);
+  } catch (error) {
+    console.error("Failed to fetch games:", error);
+    return NextResponse.json(
+      { error: "Failed to fetch games" },
+      { status: 500 }
+    );
+  }
+}
 
 export async function POST(req: NextRequest) {
   const adminPassword = process.env.ADMIN_PASSWORD;
