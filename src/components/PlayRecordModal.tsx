@@ -204,41 +204,18 @@ export default function PlayRecordModal({
     if (recordForm.playerScores.length === 0) return;
     setSubmitting(true);
     try {
-      let scoresStr: string;
-      const playerIds = recordForm.playerScores.map((e) => e.playerId).filter(Boolean);
-
-      if (recordForm.isCoop) {
-        // Co-op mode: default scores to 0, sync isWinner with team result
-        const teamWin = recordForm.coopResult === "Win";
-        const parts: string[] = [];
-        if (recordForm.coopScenario) parts.push(`[關卡: ${recordForm.coopScenario}]`);
-        if (recordForm.coopDifficulty) parts.push(`[難度: ${recordForm.coopDifficulty}]`);
-        parts.push(`[團隊結果: ${teamWin ? "勝利 🎉" : "失敗 💀"}]`);
-        if (recordForm.coopFailReason) parts.push(`[敗因: ${recordForm.coopFailReason}]`);
-
-        const playerParts = recordForm.playerScores.map((entry) => {
-          const player = players.find((p) => p.id === entry.playerId);
-          const name = player?.name ?? "未知";
-          return `${name}: 0分` + (entry.firstPlay ? " [初玩]" : "");
-        });
-        parts.push(playerParts.join(", "));
-        scoresStr = parts.join(" ");
-      } else {
-        // Competitive mode: individual scores
-        const scoresParts = recordForm.playerScores.map((entry) => {
-          const player = players.find((p) => p.id === entry.playerId);
-          const name = player?.name ?? "未知";
-          return `${name}: ${entry.score}分` + (entry.isWinner ? " [贏家]" : "") + (entry.firstPlay ? " [初玩]" : "");
-        });
-        scoresStr = scoresParts.join(", ");
-      }
+      const playerScores = recordForm.playerScores.map((entry) => ({
+        playerId: entry.playerId,
+        score: entry.score,
+        isWinner: recordForm.isCoop ? (recordForm.coopResult === "Win") : entry.isWinner,
+        firstPlay: entry.firstPlay,
+      }));
 
       const payload: Record<string, unknown> = {
         gameId,
         date: recordForm.date,
-        playerIds,
-        scores: scoresStr,
-        password: effectivePassword,
+        playerScores,
+        notes: recordForm.notes || undefined,
       };
       if (recordForm.location) payload.location = recordForm.location;
       if (recordForm.notes) payload.notes = recordForm.notes;

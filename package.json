@@ -7,28 +7,35 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "sync:bgg": "tsx scripts/sync-bgg.ts"
+    "sync:bgg": "tsx scripts/sync-bgg.ts",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "dependencies": {
     "@notionhq/client": "^2.2.15",
     "axios": "^1.17.0",
     "dotenv": "^17.4.2",
     "fast-xml-parser": "^5.8.0",
+    "lucide-react": "^1.18.0",
     "next": "^16.2.7",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "zod": "^4.4.3"
   },
   "devDependencies": {
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.2",
     "@types/node": "^20.17.6",
     "@types/react": "^18.3.12",
     "@types/react-dom": "^18.3.1",
     "autoprefixer": "^10.4.20",
     "eslint": "^8.57.1",
     "eslint-config-next": "^14.2.35",
+    "jsdom": "^29.1.1",
     "postcss": "^8.4.49",
     "tailwindcss": "^3.4.15",
     "tsx": "^4.19.2",
-    "typescript": "^5.6.3"
+    "typescript": "^5.6.3",
+    "vitest": "^4.1.8"
   }
 }

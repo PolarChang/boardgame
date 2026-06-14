@@ -5,6 +5,10 @@ import type { NotionGame, SmartFilterTag } from "@/lib/types";
 import FilterBar from "./FilterBar";
 import GameCard from "./GameCard";
 import { createSmartFilterTags } from "./SmartFilterTags";
+import SearchBar from "./SearchBar";
+import ViewToggle from "./ViewToggle";
+import type { ViewMode } from "./ViewToggle";
+import { useLocalStorage } from "@/hooks/useLocalStorage";
 
 interface GameGalleryProps {
   initialGames: NotionGame[];
@@ -20,6 +24,26 @@ function getMaxPlayTimeLimit(games: NotionGame[]) {
 const AUTH_TOKEN_KEY = "boardgame_auth_token";
 const AUTH_DURATION_MS = 30 * 24 * 60 * 60 * 1000; // 30 days in milliseconds
 
+const VIEW_MODE_KEY = "boardgame_view_mode";
+
+function getGridClass(mode: ViewMode): string {
+  switch (mode) {
+    case "card":
+      return "grid-cols-1";
+    case "grid":
+      return "grid-cols-2 md:grid-cols-3 lg:grid-cols-4";
+    case "list":
+      return "grid-cols-1"; // list mode uses flex layout instead
+  }
+}
+
+function getContainerClass(mode: ViewMode): string {
+  if (mode === "list") {
+    return "flex flex-col gap-2";
+  }
+  return `grid gap-6 p-6 sm:p-8 ${getGridClass(mode)}`;
+}
+
 export default function GameGallery({ initialGames }: GameGalleryProps) {
   const [playerCount, setPlayerCount] = useState<number | null>(null);
   const [maxPlayTime, setMaxPlayTime] = useState(() =>
@@ -30,6 +54,10 @@ export default function GameGallery({ initialGames }: GameGalleryProps) {
   const [adminPassword, setAdminPassword] = useState("");
   const isAdmin = adminPassword !== "";
   const restoredFromStorage = useRef(false);
+
+  // Search & View Mode
+  const [searchTerm, setSearchTerm] = useState("");
+  const [viewMode, setViewMode] = useLocalStorage<ViewMode>(VIEW_MODE_KEY, "grid");
 
   // On mount, restore auth token from localStorage
   useEffect(() => {
@@ -102,8 +130,19 @@ export default function GameGallery({ initialGames }: GameGalleryProps) {
     [maxPlayTimeLimit]
   );
 
+  const searchedGames = useMemo(() => {
+    if (!searchTerm.trim()) return initialGames;
+    const searchLower = searchTerm.toLowerCase();
+    return initialGames.filter((game) => {
+      return (
+        (game.chineseName ?? "").toLowerCase().includes(searchLower) ||
+        game.name.toLowerCase().includes(searchLower)
+      );
+    });
+  }, [initialGames, searchTerm]);
+
   const filteredGames = useMemo(() => {
-    let games = initialGames.filter((game) => {
+    let games = searchedGames.filter((game) => {
       if (!showExpansions && game.type === 'Expansion') return false;
       if (ownershipFilter === 'Owned' && game.ownership !== 'Owned') return false;
 
@@ -147,7 +186,7 @@ export default function GameGallery({ initialGames }: GameGalleryProps) {
     }
 
     return games;
-  }, [initialGames, playerCount, maxPlayTime, minWeight, sortBy, showExpansions, ownershipFilter, activeSmartFilterId, smartFilterTags]);
+  }, [searchedGames, playerCount, maxPlayTime, minWeight, sortBy, showExpansions, ownershipFilter, activeSmartFilterId, smartFilterTags]);
 
   const closePicker = useCallback(() => {
     setPickerVisible(false);
@@ -197,6 +236,8 @@ export default function GameGallery({ initialGames }: GameGalleryProps) {
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [pickerOpen, closePicker]);
+
+  const showEmptySearch = searchTerm.trim().length > 0 && filteredGames.length === 0;
 
   return (
     <main className="min-h-screen parchment-bg">
@@ -288,6 +329,20 @@ export default function GameGallery({ initialGames }: GameGalleryProps) {
         )}
       </header>
 
+      {/* Sticky Control Bar: Search + View Toggle */}
+      <div className="sticky top-0 z-50 border-b border-grid-line bg-parchment-light/95 backdrop-blur-sm shadow-sm">
+        <div className="mx-auto flex max-w-7xl items-center gap-3 px-6 py-3">
+          <div className="flex-1">
+            <SearchBar
+              searchTerm={searchTerm}
+              onChange={setSearchTerm}
+              onClear={() => setSearchTerm("")}
+            />
+          </div>
+          <ViewToggle viewMode={viewMode} onChange={setViewMode} />
+        </div>
+      </div>
+
       {/* Filter Bar */}
       <div className={`${isFilterExpanded ? 'block' : 'hidden'} md:block`}>
         <FilterBar
@@ -311,16 +366,31 @@ export default function GameGallery({ initialGames }: GameGalleryProps) {
       </div>
 
       {/* Game Grid */}
-      {filteredGames.length === 0 ? (
+      {showEmptySearch ? (
+        <div className="flex min-h-[50vh] flex-col items-center justify-center gap-4 p-8">
+          <p className="text-sm text-ink-muted">找不到符合「{searchTerm}」的桌遊，換個關鍵字試試？</p>
+          <button
+            type="button"
+            onClick={() => setSearchTerm("")}
+            className="btn-euro rounded-lg px-4 py-2 text-xs"
+          >
+            清除搜尋
+          </button>
+        </div>
+      ) : filteredGames.length === 0 ? (
         <div className="flex min-h-[50vh] items-center justify-center p-8">
           <p className="text-sm text-ink-muted">沒有符合篩選條件的遊戲。</p>
         </div>
       ) : (
-        <section className="mx-auto grid max-w-7xl grid-cols-1 gap-6 p-6 sm:grid-cols-2 sm:p-8 lg:grid-cols-3 xl:grid-cols-4">
+        <section
+          data-testid="game-grid-section"
+          className={`mx-auto max-w-7xl ${getContainerClass(viewMode)}`}
+        >
           {filteredGames.map((game) => (
             <GameCard
               key={game.pageId}
               game={game}
+              mode={viewMode}
               isAdmin={isAdmin}
               adminPassword={adminPassword}
             />
