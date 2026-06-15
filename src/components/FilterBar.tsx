@@ -21,6 +21,7 @@ interface FilterBarProps {
   sortBy: SortBy;
   showExpansions: boolean;
   ownershipFilter: 'Owned' | 'All';
+  bestPlayerCountOnly: boolean;
   smartFilterTags: SmartFilterTag[];
   activeSmartFilterId: string | null;
   onSmartFilterClick: (tag: SmartFilterTag | null) => void;
@@ -30,6 +31,7 @@ interface FilterBarProps {
   onSortByChange: (value: SortBy) => void;
   onShowExpansionsChange: (value: boolean) => void;
   onOwnershipFilterChange: (value: 'Owned' | 'All') => void;
+  onBestPlayerCountOnlyChange: (value: boolean) => void;
 }
 
 export default function FilterBar({
@@ -40,6 +42,7 @@ export default function FilterBar({
   sortBy,
   showExpansions,
   ownershipFilter,
+  bestPlayerCountOnly,
   smartFilterTags,
   activeSmartFilterId,
   onSmartFilterClick,
@@ -49,6 +52,7 @@ export default function FilterBar({
   onSortByChange,
   onShowExpansionsChange,
   onOwnershipFilterChange,
+  onBestPlayerCountOnlyChange,
 }: FilterBarProps) {
   return (
     <div className="border-b border-grid-line bg-parchment-light px-6 py-4 sm:px-8">
@@ -102,6 +106,18 @@ export default function FilterBar({
                 </button>
               ))}
             </div>
+            {/* Best Player Count Toggle — only when a player count is selected */}
+            {playerCount !== null && (
+              <label className="mt-2 flex cursor-pointer items-center gap-2 text-xs text-ink-light hover:text-ink transition-colors">
+                <input
+                  type="checkbox"
+                  className="accent-brass h-3.5 w-3.5"
+                  checked={bestPlayerCountOnly}
+                  onChange={(e) => onBestPlayerCountOnlyChange(e.target.checked)}
+                />
+                <span>★ 只顯示最佳人數</span>
+              </label>
+            )}
           </div>
 
           {/* Max Play Time Slider */}

@@ -13,11 +13,38 @@ interface GameCardProps {
   adminPassword?: string;
 }
 
+/** Format bestPlayers for display, e.g. "2,3" → "2–3人", "4" → "4人" */
+function formatBestPlayers(raw: string): string | null {
+  if (!raw || raw.trim() === "") return null;
+  const trimmed = raw.trim();
+  // Check if it's a range like "2-4"
+  if (/^\d+-\d+$/.test(trimmed)) {
+    return trimmed.replace("-", "–") + "人";
+  }
+  // Comma-separated list like "2,3,4"
+  if (trimmed.includes(",")) {
+    const parts = trimmed.split(",").map(s => s.trim()).filter(Boolean);
+    if (parts.length === 0) return null;
+    // For consecutive ranges like "2,3,4" compact to "2–4人"
+    const nums = parts.map(Number).sort((a, b) => a - b);
+    const isConsecutive = nums.every((n, i, arr) => i === 0 || n === arr[i - 1] + 1);
+    if (isConsecutive && nums.length > 1) {
+      return `${nums[0]}–${nums[nums.length - 1]}人`;
+    }
+    // For non-consecutive like "2,4" show as individual
+    return parts.join("、") + "人";
+  }
+  // Single number
+  return trimmed + "人";
+}
+
 export default function GameCard({ game, mode = "card", isAdmin = false, adminPassword }: GameCardProps) {
   const [open, setOpen] = useState(false);
   const trimmedChineseName = (game.chineseName ?? "").trim();
   const hasChineseName = trimmedChineseName.length > 0;
   const primaryName = hasChineseName ? trimmedChineseName : game.name;
+
+  const bestPlayersDisplay = formatBestPlayers(game.bestPlayers);
 
   // --- Card Mode (default, single-column large card) ---
   if (mode === "card") {
@@ -69,6 +96,11 @@ export default function GameCard({ game, mode = "card", isAdmin = false, adminPa
               <span className="rounded-full border border-grid-line bg-parchment px-2 py-0.5 text-[10px] font-medium text-ink-light">
                 {game.minPlayers}–{game.maxPlayers} 人
               </span>
+              {bestPlayersDisplay && (
+                <span className="rounded-full border border-brass/30 bg-brass/10 px-2 py-0.5 text-[10px] font-medium text-ink-light">
+                  ★ {bestPlayersDisplay}
+                </span>
+              )}
               <span className="rounded-full border border-grid-line bg-parchment px-2 py-0.5 text-[10px] font-medium text-ink-light">
                 {game.playTime > 0 ? `${game.playTime} 分鐘` : '時間未定'}
               </span>
@@ -147,6 +179,11 @@ export default function GameCard({ game, mode = "card", isAdmin = false, adminPa
               <span className="rounded-full border border-grid-line bg-parchment px-1.5 py-0.5 text-[9px] font-medium text-ink-light">
                 {game.minPlayers}–{game.maxPlayers}人
               </span>
+              {bestPlayersDisplay && (
+                <span className="rounded-full border border-brass/30 bg-brass/10 px-1.5 py-0.5 text-[9px] font-medium text-ink-light">
+                  ★{bestPlayersDisplay}
+                </span>
+              )}
               <span className="rounded-full border border-grid-line bg-parchment px-1.5 py-0.5 text-[9px] font-medium text-ink-light">
                 {game.playTime > 0 ? `${game.playTime}分` : '?'}
               </span>
@@ -215,6 +252,11 @@ export default function GameCard({ game, mode = "card", isAdmin = false, adminPa
           <span className="whitespace-nowrap rounded-full border border-grid-line bg-parchment px-2 py-0.5">
             {game.minPlayers}–{game.maxPlayers}人
           </span>
+          {bestPlayersDisplay && (
+            <span className="whitespace-nowrap rounded-full border border-brass/30 bg-brass/10 px-2 py-0.5">
+              ★{bestPlayersDisplay}
+            </span>
+          )}
           <span className="whitespace-nowrap rounded-full border border-grid-line bg-parchment px-2 py-0.5">
             ⚖ {game.complexity > 0 ? game.complexity.toFixed(1) : '-'}
           </span>

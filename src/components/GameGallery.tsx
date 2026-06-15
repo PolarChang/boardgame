@@ -88,6 +88,7 @@ export default function GameGallery({ initialGames }: GameGalleryProps) {
   const [showExpansions, setShowExpansions] = useState(false);
   const [ownershipFilter, setOwnershipFilter] = useState<'Owned' | 'All'>('Owned');
   const [isFilterExpanded, setIsFilterExpanded] = useState(false);
+  const [bestPlayerCountOnly, setBestPlayerCountOnly] = useState(false);
 
   // Smart Filter Tags
   const [activeSmartFilterId, setActiveSmartFilterId] = useState<string | null>(null);
@@ -160,6 +161,13 @@ export default function GameGallery({ initialGames }: GameGalleryProps) {
         return false;
       }
 
+      // Best player count toggle: only show games where playerCount is in bestPlayers
+      if (bestPlayerCountOnly && playerCount !== null) {
+        if (!game.bestPlayers || game.bestPlayers.trim() === "") return false;
+        const bestNums = game.bestPlayers.split(",").map(s => parseInt(s.trim(), 10)).filter(n => !isNaN(n));
+        if (!bestNums.includes(playerCount)) return false;
+      }
+
       return true;
     }).sort((a, b) => {
       const ratingValue = (g: NotionGame) => g.rating || 0;
@@ -186,7 +194,7 @@ export default function GameGallery({ initialGames }: GameGalleryProps) {
     }
 
     return games;
-  }, [searchedGames, playerCount, maxPlayTime, minWeight, sortBy, showExpansions, ownershipFilter, activeSmartFilterId, smartFilterTags]);
+  }, [searchedGames, playerCount, maxPlayTime, minWeight, sortBy, showExpansions, ownershipFilter, activeSmartFilterId, smartFilterTags, bestPlayerCountOnly]);
 
   const closePicker = useCallback(() => {
     setPickerVisible(false);
@@ -353,6 +361,7 @@ export default function GameGallery({ initialGames }: GameGalleryProps) {
           sortBy={sortBy}
           showExpansions={showExpansions}
           ownershipFilter={ownershipFilter}
+          bestPlayerCountOnly={bestPlayerCountOnly}
           smartFilterTags={smartFilterTags}
           activeSmartFilterId={activeSmartFilterId}
           onSmartFilterClick={handleSmartFilterClick}
@@ -362,6 +371,7 @@ export default function GameGallery({ initialGames }: GameGalleryProps) {
           onSortByChange={setSortBy}
           onShowExpansionsChange={setShowExpansions}
           onOwnershipFilterChange={setOwnershipFilter}
+          onBestPlayerCountOnlyChange={setBestPlayerCountOnly}
         />
       </div>
 
