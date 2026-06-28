@@ -24,13 +24,11 @@ describe('getVisiblePlayerCountSections', () => {
     expect(sections[4]).toMatchObject({ count: 6, games: [] });
   });
 
-  it('returns the selected section with games and keeps the other sections empty', () => {
+  it('returns only the selected section when a specific player count is chosen', () => {
     const sections = getVisiblePlayerCountSections(data, 3);
 
-    expect(sections).toHaveLength(5);
-    expect(sections[1]).toMatchObject({ count: 3, games: [{ bgg_id: '2' }] });
-    expect(sections[0]).toMatchObject({ count: 2, games: [] });
-    expect(sections[2]).toMatchObject({ count: 4, games: [] });
+    expect(sections).toHaveLength(1);
+    expect(sections[0]).toMatchObject({ count: 3, games: [{ bgg_id: '2' }] });
   });
 
   it('normalizes cloud game data into best-player sections', () => {
@@ -75,5 +73,51 @@ describe('getVisiblePlayerCountSections', () => {
     expect(games).toHaveLength(1);
     expect(sections.map((section) => section.count)).toEqual([4, 5, 6]);
     expect(sections[0]).toMatchObject({ count: 4, games: [{ name: 'Summary Game', best_for: [4] }] });
+  });
+
+  it('maps metadata fields from the cloud payload into each game card', () => {
+    const sections = normalizeCloudGamesToPlayerSections([
+      {
+        bgg_id: 12345,
+        name: 'Metadata Game',
+        year: 2024,
+        image: 'https://example.com/cover.jpg',
+        thumbnail: 'https://example.com/thumb.jpg',
+        min_players: 2,
+        max_players: 5,
+        play_time: 45,
+        min_age: 10,
+        weight: 3.2,
+        rating: 8.5,
+        users_rated: 1200,
+        bgg_rank: 12,
+        categories: ['Strategy'],
+        mechanics: ['Drafting'],
+        designers: ['Alice'],
+        best_for: [2],
+      },
+    ]);
+
+    expect(sections[0]).toMatchObject({
+      count: 2,
+      games: [{
+        bgg_id: '12345',
+        name: 'Metadata Game',
+        year: 2024,
+        image: 'https://example.com/cover.jpg',
+        thumbnail: 'https://example.com/thumb.jpg',
+        min_players: 2,
+        max_players: 5,
+        play_time: 45,
+        min_age: 10,
+        weight: 3.2,
+        rating: 8.5,
+        users_rated: 1200,
+        bgg_rank: 12,
+        categories: ['Strategy'],
+        mechanics: ['Drafting'],
+        designers: ['Alice'],
+      }],
+    });
   });
 });
