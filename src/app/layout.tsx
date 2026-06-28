@@ -60,6 +60,12 @@ export default function RootLayout({
               >
                 戰績表
               </Link>
+              <Link
+                href="/picks"
+                className="rounded-lg px-3 py-1.5 text-sm font-semibold text-ink-light transition hover:bg-brass/10 hover:text-ink"
+              >
+                精選推薦
+              </Link>
             </nav>
           </div>
         </header>
