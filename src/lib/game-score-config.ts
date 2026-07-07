@@ -16,7 +16,11 @@ const DEFAULT_CONFIGS: GameScoreConfig[] = [
 
   // Example: 7 Wonders Duel – 軍事 and 科學 are instant-win paths,
   // but if neither triggers, compare civilian points
-  { gameName: "7 Wonders Duel", scoreFields: ["軍事力", "科學力", "民⽤點數"] },
+  {
+    gameName: "7 Wonders Duel",
+    scoreFields: ["軍事力", "科學力", "民⽤點數"],
+    victoryConditions: ["⚔️ 軍事壓制", "🔬 科技壟斷", "🏛️ 民用比分"],
+  },
 
   // Example: Terraforming Mars – TR vs VP, with final scoring as third
   { gameName: "Terraforming Mars", scoreFields: ["TR", "VP (不含TR)", "最終結算"] },
@@ -58,6 +62,27 @@ export function getScoreFieldsFromGamesList(
   if (!game || !game.scoreFields || game.scoreFields.length === 0) return null;
   return game.scoreFields;
 }
+/**
+ * Look up victory conditions from an in-memory list of NotionGame API items.
+ * Falls back to code defaults if not found in the list.
+ */
+export function getVictoryConditionsFromGamesList(
+  gamesList: { name: string; victoryConditions?: string[] }[],
+  gameName: string
+): string[] | null {
+  if (!gameName.trim()) return null;
+  // First check the in-memory list (from Notion API)
+  const game = gamesList.find(
+    (g) => g.name.toLowerCase() === gameName.trim().toLowerCase()
+  );
+  if (game && game.victoryConditions && game.victoryConditions.length > 0) {
+    return game.victoryConditions;
+  }
+  // Fall back to code defaults / localStorage
+  return getVictoryConditionsForGame(gameName);
+}
+
+
 
 /** Legacy: Get all score configs (defaults + user overrides from localStorage). */
 export function getScoreConfigs(): GameScoreConfig[] {
@@ -85,6 +110,18 @@ export function getScoreFieldsForGame(gameName: string): string[] | null {
   if (!config || config.scoreFields.length === 0) return null;
   return config.scoreFields;
 }
+
+/** Get victory conditions for a specific game from code defaults / localStorage. Returns null if not configured. */
+export function getVictoryConditionsForGame(gameName: string): string[] | null {
+  const configs = getScoreConfigs();
+  const config = configs.find(
+    (c) => c.gameName.toLowerCase() === gameName.toLowerCase()
+  );
+  if (!config || !config.victoryConditions || config.victoryConditions.length === 0) return null;
+  return config.victoryConditions;
+}
+
+
 
 /** Legacy: Save user-customised score configs */
 export function saveScoreConfig(configs: GameScoreConfig[]): void {

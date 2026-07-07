@@ -153,6 +153,7 @@ function parseNotionPage(page: PageObjectResponse): NotionGame | null {
     playCount: extractNumber(props["Play Count"]),
     bggLink: extractUrl(props["BGG Link"]),
     scoreFields: extractMultiSelect(props["Score Fields"]),
+    victoryConditions: extractMultiSelect(props["Victory Conditions"]),
   };
 }
 

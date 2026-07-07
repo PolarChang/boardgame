@@ -680,6 +680,9 @@ export default function DashboardClient() {
                           {p.factionOrColor && (
                             <span className="text-xs text-ink-muted">({p.factionOrColor})</span>
                           )}
+                          {p.victoryCondition && (
+                            <span className="text-xs text-euro-blue ml-1">{p.victoryCondition}</span>
+                          )}
                         </div>
                         <div className="flex flex-col items-end">
                           {p.scores && p.scores.length > 0 ? (
@@ -711,6 +714,7 @@ export default function DashboardClient() {
                   <div className="mt-4 space-y-1 text-xs text-ink-light">
                     {log.durationMinutes > 0 && <p>⏱ 遊戲時長：{log.durationMinutes} 分鐘</p>}
                     {log.location && <p>📍 地點：{log.location}</p>}
+                    {log.victoryCondition && <p>🏆 勝利方式：{log.victoryCondition}</p>}
                     {log.notes && (
                       <p className="italic text-ink-muted mt-2">&ldquo;{log.notes}&rdquo;</p>
                     )}

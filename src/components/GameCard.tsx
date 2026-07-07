@@ -6,6 +6,37 @@ import type { NotionGame } from "@/lib/types";
 import type { ViewMode } from "./ViewToggle";
 import PlayRecordModal from "./PlayRecordModal";
 
+/* Vintage Analog: warm sepia overlay for images */
+function VintageImage({ src, alt, fill, className, sizes }: { src: string; alt: string; fill?: boolean; className?: string; sizes?: string }) {
+  return (
+    <div className={`relative overflow-hidden ${className ?? ""}`}>
+      <Image
+        src={src}
+        alt={alt}
+        fill
+        sizes={sizes}
+        className="object-contain"
+      />
+      {/* Warm sepia tint overlay */}
+      <div
+        className="pointer-events-none absolute inset-0 mix-blend-overlay opacity-20"
+        style={{
+          background:
+            "linear-gradient(180deg, rgba(212,165,116,0.4) 0%, rgba(168,67,67,0.15) 100%)",
+        }}
+      />
+      {/* Subtle vignette */}
+      <div
+        className="pointer-events-none absolute inset-0"
+        style={{
+          background:
+            "radial-gradient(circle at center, transparent 60%, rgba(45,36,30,0.25) 100%)",
+        }}
+      />
+    </div>
+  );
+}
+
 interface GameCardProps {
   game: NotionGame;
   mode?: ViewMode;
@@ -57,12 +88,12 @@ export default function GameCard({ game, mode = "card", isAdmin = false, adminPa
             className="relative h-48 cursor-pointer bg-parchment-dark text-left"
           >
             {game.image ? (
-              <Image
+              <VintageImage
                 src={game.image}
                 alt={primaryName}
                 fill
                 sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
-                className="object-contain transition-transform duration-200 group-hover:scale-[1.05] p-2"
+                className="transition-transform duration-200 group-hover:scale-[1.05] p-2"
               />
             ) : (
               <div className="flex h-full items-center justify-center text-xs text-ink-muted">
@@ -141,12 +172,12 @@ export default function GameCard({ game, mode = "card", isAdmin = false, adminPa
             className="relative aspect-[4/3] cursor-pointer bg-parchment-dark text-left"
           >
             {game.image ? (
-              <Image
+              <VintageImage
                 src={game.image}
                 alt={primaryName}
                 fill
                 sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
-                className="object-contain transition-transform duration-200 group-hover:scale-[1.05] p-1.5"
+                className="transition-transform duration-200 group-hover:scale-[1.05] p-1.5"
               />
             ) : (
               <div className="flex h-full items-center justify-center text-xs text-ink-muted">
@@ -217,12 +248,12 @@ export default function GameCard({ game, mode = "card", isAdmin = false, adminPa
         {/* Thumbnail */}
         <div className="relative h-14 w-14 flex-shrink-0 overflow-hidden rounded-md bg-parchment-dark">
           {game.image ? (
-            <Image
+            <VintageImage
               src={game.image}
               alt={primaryName}
               fill
               sizes="56px"
-              className="object-contain p-1"
+              className="p-1"
             />
           ) : (
             <div className="flex h-full items-center justify-center text-[9px] text-ink-muted">

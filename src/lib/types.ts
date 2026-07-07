@@ -29,6 +29,9 @@ export interface NotionGame {
   bggLink: string;
   /** Score field labels configured in Notion (multi-select). If empty/undefined, use legacy single score. */
   scoreFields?: string[];
+  /** Victory condition labels configured in Notion (multi-select). e.g. ["⚔️ 軍事壓制", "🔬 科技壟斷", "🏛️ 民用比分"] */
+  victoryConditions?: string[];
+
 }
 
 export interface Player {
@@ -63,6 +66,8 @@ export interface PlayLogPlayer {
   /** New multi-score fields – e.g. [{ label: "建設分", value: 42 }, { label: "動物分", value: 18 }] */
   scores?: PlayerScoreEntry[];
   factionOrColor?: string;
+  /** Victory condition for this player, e.g. "⚔️ 軍事壓制" */
+  victoryCondition?: string;
   isWinner: boolean;
 }
 
@@ -76,6 +81,8 @@ export interface PlayLog {
   players: PlayLogPlayer[];
   endgamePhotoUrl?: string;
   notes?: string;
+  /** Top-level victory condition (how the game ended), e.g. "⚔️ 軍事壓制" */
+  victoryCondition?: string;
 }
 
 export interface SmartFilterTag {
@@ -90,6 +97,9 @@ export interface SmartFilterTag {
 /** Configuration for which score fields a game expects */
 export interface GameScoreConfig {
   gameName: string;
+  /** Optional list of victory conditions for this game. Empty/undefined = not used. */
+  victoryConditions?: string[];
+
   /** Ordered list of score field labels. Empty array = use legacy single score. */
   scoreFields: string[];
 }

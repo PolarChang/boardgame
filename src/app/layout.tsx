@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Cinzel, DM_Sans, Cormorant_Garamond } from "next/font/google";
+import { Cinzel, DM_Sans, Cormorant_Garamond, Noto_Sans_TC } from "next/font/google";
 import "./globals.css";
 
 const cinzel = Cinzel({
@@ -22,6 +22,13 @@ const cormorant = Cormorant_Garamond({
   display: "swap",
 });
 
+const notoSansTC = Noto_Sans_TC({
+  subsets: ["latin"],
+  weight: ["400", "500", "700"],
+  variable: "--font-noto-sans-tc",
+  display: "swap",
+});
+
 export const metadata: Metadata = {
   title: "Board Game Collection — Euro-Classic Ledger",
   description:
@@ -36,16 +43,33 @@ export default function RootLayout({
   return (
     <html
       lang="zh-TW"
-      className={`h-full ${cinzel.variable} ${dmSans.variable} ${cormorant.variable}`}
+      className={`h-full ${cinzel.variable} ${dmSans.variable} ${cormorant.variable} ${notoSansTC.variable}`}
+      suppressHydrationWarning
     >
-      <body className="min-h-full parchment-bg text-ink antialiased" style={{ fontFamily: "var(--font-dm-sans), system-ui, sans-serif" }}>
+      <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              (function() {
+                try {
+                  var theme = localStorage.getItem('boardgame-theme');
+                  if (theme === 'dark' || (!theme && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+                    document.documentElement.classList.add('dark');
+                  }
+                } catch(e) {}
+              })();
+            `,
+          }}
+        />
+      </head>
+      <body className="min-h-full parchment-bg text-ink antialiased" style={{ fontFamily: "var(--font-noto-sans-tc), var(--font-dm-sans), system-ui, sans-serif" }}>
         <header className="border-b border-grid-line bg-parchment-light/95 backdrop-blur">
           <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-6 py-4 sm:px-8">
             <Link
               href="/"
               className="font-heading text-sm font-bold tracking-wider text-ink hover:text-brass transition-colors"
             >
-              🎲 Board Game Collection
+              Board Game Collection
             </Link>
             <nav className="flex items-center gap-1">
               <Link
@@ -65,6 +89,12 @@ export default function RootLayout({
                 className="rounded-lg px-3 py-1.5 text-sm font-semibold text-ink-light transition hover:bg-brass/10 hover:text-ink"
               >
                 精選推薦
+              </Link>
+              <Link
+                href="/rules"
+                className="rounded-lg px-3 py-1.5 text-sm font-semibold text-ink-light transition hover:bg-brass/10 hover:text-ink"
+              >
+                規則查詢
               </Link>
             </nav>
           </div>

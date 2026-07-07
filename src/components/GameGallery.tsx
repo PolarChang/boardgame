@@ -1,8 +1,10 @@
 "use client";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
+import { Sun, Moon, Dice1, Lock, Unlock, Settings, Sparkles, X } from "lucide-react";
 import type { NotionGame, SmartFilterTag } from "@/lib/types";
 import FilterBar from "./FilterBar";
+import MobileFilterDrawer from "./MobileFilterDrawer";
 import GameCard from "./GameCard";
 import { createSmartFilterTags } from "./SmartFilterTags";
 import SearchBar from "./SearchBar";
@@ -261,6 +263,22 @@ export default function GameGallery({ initialGames }: GameGalleryProps) {
             </p>
           </div>
           <div className="flex items-center gap-2">
+            {/* Dark mode toggle */}
+            <button
+              type="button"
+              onClick={() => {
+                const html = document.documentElement;
+                const isDark = html.classList.toggle('dark');
+                try {
+                  localStorage.setItem('boardgame-theme', isDark ? 'dark' : 'light');
+                } catch {}
+              }}
+              className="text-ink-muted hover:text-ink transition-colors"
+              title="切換深色／淺色模式"
+            >
+              <Sun className="h-4 w-4 hidden dark:block" aria-hidden="true" />
+              <Moon className="h-4 w-4 block dark:hidden" aria-hidden="true" />
+            </button>
             <button
               type="button"
               onClick={() => {
@@ -275,8 +293,9 @@ export default function GameGallery({ initialGames }: GameGalleryProps) {
                 }
               }}
               className="text-ink-muted hover:text-ink transition-colors"
+              title={isAdmin ? "管理員已登入" : "登入管理員"}
             >
-              {isAdmin ? '🔓' : '🔒'}
+              {isAdmin ? <Unlock className="h-4 w-4" aria-hidden="true" /> : <Lock className="h-4 w-4" aria-hidden="true" />}
             </button>
             {isAdmin && (
               <>
@@ -296,16 +315,17 @@ export default function GameGallery({ initialGames }: GameGalleryProps) {
                   onClick={pickOne}
                   className="btn-wax-seal rounded-lg px-4 py-2 text-xs"
                 >
-                  <span aria-hidden="true">🎲</span>
+                  <Dice1 className="h-3.5 w-3.5" aria-hidden="true" />
                   幫我選
                 </button>
               </>
             )}
             <button 
               className="md:hidden p-2 text-ink-muted hover:text-ink"
-              onClick={() => setIsFilterExpanded(!isFilterExpanded)}
+              onClick={() => setIsFilterExpanded(true)}
+              title="篩選設定"
             >
-              ⚙️
+              <Settings className="h-4 w-4" aria-hidden="true" />
             </button>
           </div>
         </div>
@@ -408,12 +428,36 @@ export default function GameGallery({ initialGames }: GameGalleryProps) {
         </section>
       )}
 
+      {/* Mobile Filter Drawer */}
+      <MobileFilterDrawer
+        open={isFilterExpanded}
+        onClose={() => setIsFilterExpanded(false)}
+        playerCount={playerCount}
+        maxPlayTime={maxPlayTime}
+        maxPlayTimeLimit={maxPlayTimeLimit}
+        minWeight={minWeight}
+        sortBy={sortBy}
+        showExpansions={showExpansions}
+        ownershipFilter={ownershipFilter}
+        bestPlayerCountOnly={bestPlayerCountOnly}
+        smartFilterTags={smartFilterTags}
+        activeSmartFilterId={activeSmartFilterId}
+        onSmartFilterClick={handleSmartFilterClick}
+        onPlayerCountChange={setPlayerCount}
+        onMaxPlayTimeChange={setMaxPlayTime}
+        onMinWeightChange={setMinWeight}
+        onSortByChange={setSortBy}
+        onShowExpansionsChange={setShowExpansions}
+        onOwnershipFilterChange={setOwnershipFilter}
+        onBestPlayerCountOnlyChange={setBestPlayerCountOnly}
+      />
+
       {/* Scroll to top */}
       {showScrollTop ? (
         <button
           type="button"
           onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
-          className="fixed bottom-4 right-4 h-11 w-11 rounded-full bg-parchment text-ink shadow-euro border border-grid-line hover:border-brass transition-colors"
+          className="fixed bottom-4 right-4 h-11 w-11 rounded-full bg-parchment text-ink shadow-euro border border-grid-line hover:border-brass dark:bg-dark-parchment dark:text-dark-ink dark:border-dark-grid-line transition-colors"
         >
           ↑
         </button>
@@ -428,7 +472,7 @@ export default function GameGallery({ initialGames }: GameGalleryProps) {
           onClick={closePicker}
         >
           <div
-            className={`max-h-[85vh] w-full max-w-md transform overflow-y-auto bg-parchment-light p-6 shadow-euro-lg transition-all duration-200 brass-border ${
+            className={`max-h-[85vh] w-full max-w-md transform overflow-y-auto bg-parchment-light dark:bg-dark-parchment-light p-6 shadow-euro-lg dark:shadow-dark-euro-lg transition-all duration-200 brass-border ${
               pickerVisible ? "scale-100" : "scale-95"
             }`}
             onClick={(e) => e.stopPropagation()}
@@ -444,24 +488,24 @@ export default function GameGallery({ initialGames }: GameGalleryProps) {
                 />
               </div>
             )}
-            <h2 className="font-heading text-xl font-bold text-ink">{pickedGame.chineseName || pickedGame.name}</h2>
+            <h2 className="font-heading text-xl font-bold text-ink dark:text-dark-ink">{pickedGame.chineseName || pickedGame.name}</h2>
             {pickedGame.chineseName && (
-              <p className="mt-1 text-sm text-ink-muted">{pickedGame.name}</p>
+              <p className="mt-1 text-sm text-ink-muted dark:text-dark-ink-muted">{pickedGame.name}</p>
             )}
-            <div className="mt-4 flex flex-wrap gap-3 text-sm text-ink-light">
+            <div className="mt-4 flex flex-wrap gap-3 text-sm text-ink-light dark:text-dark-ink-light">
               {pickedGame.minPlayers > 0 && pickedGame.maxPlayers > 0 && (
-                <span className="rounded-full border border-grid-line bg-parchment px-2.5 py-1">
-                  👥 {pickedGame.minPlayers}-{pickedGame.maxPlayers}人
+                <span className="rounded-full border border-grid-line dark:border-dark-grid-line bg-parchment dark:bg-dark-parchment px-2.5 py-1">
+                  {pickedGame.minPlayers}-{pickedGame.maxPlayers}人
                 </span>
               )}
               {pickedGame.playTime ? (
-                <span className="rounded-full border border-grid-line bg-parchment px-2.5 py-1">⏱ {pickedGame.playTime}分</span>
+                <span className="rounded-full border border-grid-line dark:border-dark-grid-line bg-parchment dark:bg-dark-parchment px-2.5 py-1">{pickedGame.playTime}分</span>
               ) : null}
               {pickedGame.complexity ? (
-                <span className="rounded-full border border-grid-line bg-parchment px-2.5 py-1">⚖ {pickedGame.complexity.toFixed(1)}</span>
+                <span className="rounded-full border border-grid-line dark:border-dark-grid-line bg-parchment dark:bg-dark-parchment px-2.5 py-1">★ {pickedGame.complexity.toFixed(1)}</span>
               ) : null}
               {pickedGame.rating ? (
-                <span className="rounded-full border border-grid-line bg-parchment px-2.5 py-1">⭐ {pickedGame.rating.toFixed(1)}</span>
+                <span className="rounded-full border border-grid-line dark:border-dark-grid-line bg-parchment dark:bg-dark-parchment px-2.5 py-1">BGG {pickedGame.rating.toFixed(1)}</span>
               ) : null}
             </div>
             <div className="mt-6 flex gap-3">
@@ -470,7 +514,8 @@ export default function GameGallery({ initialGames }: GameGalleryProps) {
                 onClick={repick}
                 className="btn-euro-primary flex-1 rounded-lg px-4 py-2.5 text-sm"
               >
-                🎲 換一個
+                <Dice1 className="h-4 w-4" aria-hidden="true" />
+                換一個
               </button>
               <button
                 type="button"

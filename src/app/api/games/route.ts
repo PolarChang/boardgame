@@ -12,6 +12,7 @@ export async function GET() {
       name: g.name,
       chineseName: g.chineseName,
       scoreFields: g.scoreFields,
+      victoryConditions: g.victoryConditions,
     })).sort((a, b) => a.name.localeCompare(b.name));
     return NextResponse.json(gameNames);
   } catch (error) {

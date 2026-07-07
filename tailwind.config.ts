@@ -1,6 +1,7 @@
 import type { Config } from "tailwindcss";
 
 const config: Config = {
+  darkMode: "class",
   content: [
     "./src/pages/**/*.{js,ts,jsx,tsx,mdx}",
     "./src/components/**/*.{js,ts,jsx,tsx,mdx}",
@@ -42,17 +43,41 @@ const config: Config = {
           DEFAULT: "#6b4423",
           light: "#8b6914",
         },
+        /* Dark mode parchment variants */
+        "dark-parchment": {
+          DEFAULT: "#1a1614",
+          dark: "#14110f",
+          light: "#231e1a",
+        },
+        "dark-grid": {
+          line: "#2a2420",
+        },
+        "dark-ink": {
+          DEFAULT: "#ebe0d5",
+          dark: "#f5ede5",
+          light: "#b5a89a",
+          muted: "#7d7266",
+        },
+        "dark-brass": {
+          DEFAULT: "#c5a059",
+          dark: "#b0883a",
+          light: "#d4b87a",
+        },
       },
       fontFamily: {
         heading: ["Cinzel", "serif"],
         body: ["DM Sans", "sans-serif"],
         elegant: ["Cormorant Garamond", "serif"],
         display: ["Playfair Display", "serif"],
+        "chinese-heading": ["Noto Sans TC", "Cinzel", "serif"],
+        "chinese-body": ["Noto Sans TC", "DM Sans", "sans-serif"],
       },
       boxShadow: {
         euro: "0 2px 8px rgba(45, 36, 30, 0.08)",
         "euro-lg": "0 4px 16px rgba(197, 160, 89, 0.15)",
         wax: "0 1px 3px rgba(168, 67, 67, 0.4)",
+        "dark-euro": "0 2px 8px rgba(0, 0, 0, 0.3)",
+        "dark-euro-lg": "0 4px 16px rgba(197, 160, 89, 0.25)",
       },
     },
   },

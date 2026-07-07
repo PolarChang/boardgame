@@ -4,12 +4,14 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
 import type { PlayLogPlayer, PlayerScoreEntry } from "@/lib/types";
 import { savePlayLog, getPlayLogs } from "@/lib/playlog-storage";
-import { getScoreFieldsFromGamesList } from "@/lib/game-score-config";
+import { getScoreFieldsFromGamesList, getVictoryConditionsFromGamesList } from "@/lib/game-score-config";
 
 interface GameApiItem {
   pageId: string;
   name: string;
   chineseName?: string;
+  scoreFields?: string[];
+  victoryConditions?: string[];
 }
 
 interface AddPlayLogModalProps {
@@ -25,10 +27,11 @@ interface PlayerFormEntry {
   scores: PlayerScoreEntry[];
   factionOrColor: string;
   isWinner: boolean;
+  victoryCondition: string;
 }
 
 function emptyPlayer(): PlayerFormEntry {
-  return { name: "", score: 0, scores: [], factionOrColor: "", isWinner: false };
+  return { name: "", score: 0, scores: [], factionOrColor: "", isWinner: false, victoryCondition: "" };
 }
 
 function todayISO(): string {
@@ -104,6 +107,12 @@ export default function AddPlayLogModal({
     return getScoreFieldsFromGamesList(allGames, gameName.trim());
   }, [gameName, allGames]);
 
+  // Determine victory conditions based on selected game
+  const victoryConditions = useMemo(() => {
+    if (!gameName.trim() || allGames.length === 0) return null;
+    return getVictoryConditionsFromGamesList(allGames, gameName.trim());
+  }, [gameName, allGames]);
+
   // When game changes, re-init players' scores to match the new scoreFields
   useEffect(() => {
     setPlayers((prev) =>
@@ -115,6 +124,13 @@ export default function AddPlayLogModal({
       }))
     );
   }, [scoreFields]);
+
+  // When game changes, reset victoryCondition
+  useEffect(() => {
+    setPlayers((prev) =>
+      prev.map((p) => ({ ...p, victoryCondition: "" }))
+    );
+  }, [victoryConditions]);
 
   // Game name autocomplete from Notion game list
   const handleGameNameChange = (value: string) => {
@@ -235,6 +251,7 @@ export default function AddPlayLogModal({
       scores: scoreFields && p.scores ? p.scores : undefined,
       factionOrColor: p.factionOrColor.trim() || undefined,
       isWinner: p.isWinner,
+      victoryCondition: p.victoryCondition || undefined,
     }));
 
     const newLog = savePlayLog({
@@ -244,6 +261,7 @@ export default function AddPlayLogModal({
       location: location.trim() || undefined,
       durationMinutes,
       players: playLogPlayers,
+      victoryCondition: players.find((p) => p.isWinner)?.victoryCondition || undefined,
       endgamePhotoUrl: endgamePhotoBase64 || undefined,
       notes: notes.trim() || undefined,
     });
@@ -454,6 +472,22 @@ export default function AddPlayLogModal({
                     placeholder="陣營/顏色"
                     className="input-euro rounded w-24 text-sm"
                   />
+                  {victoryConditions && (
+                    <select
+                      value={player.victoryCondition}
+                      onChange={(e) =>
+                        updatePlayer(idx, { victoryCondition: e.target.value })
+                      }
+                      className="input-euro rounded text-sm"
+                    >
+                      <option value="">勝利方式</option>
+                      {victoryConditions.map((vc) => (
+                        <option key={vc} value={vc}>
+                          {vc}
+                        </option>
+                      ))}
+                    </select>
+                  )}
                   <label className="flex items-center gap-1 text-xs text-ink-light cursor-pointer shrink-0 pt-1">
                     <input
                       type="checkbox"
