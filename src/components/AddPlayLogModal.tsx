@@ -5,6 +5,7 @@ import Image from "next/image";
 import type { PlayLogPlayer, PlayerScoreEntry } from "@/lib/types";
 import { savePlayLog, getPlayLogs } from "@/lib/playlog-storage";
 import { getScoreFieldsFromGamesList, getVictoryConditionsFromGamesList } from "@/lib/game-score-config";
+import { ensurePlayersExist } from "@/lib/player-storage";
 
 interface GameApiItem {
   pageId: string;
@@ -59,6 +60,17 @@ export default function AddPlayLogModal({
   const [allGames, setAllGames] = useState<GameApiItem[]>([]);
   const [gamesLoading, setGamesLoading] = useState(true);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Admin password for Notion sync (optional) – stored in sessionStorage for one-time unlock per session
+  const [adminPassword, setAdminPassword] = useState(() => {
+    if (typeof window === "undefined") return "";
+    return sessionStorage.getItem("boardgame_admin_pw") || "";
+  });
+  const [adminSectionOpen, setAdminSectionOpen] = useState(false);
+  const [adminUnlocked, setAdminUnlocked] = useState(() => {
+    if (typeof window === "undefined") return false;
+    return !!sessionStorage.getItem("boardgame_admin_pw");
+  });
 
   // Player library for autocomplete
   const [playerLibrary, setPlayerLibrary] = useState<string[]>([]);
@@ -233,8 +245,42 @@ export default function AddPlayLogModal({
     }
   };
 
+  // Unlock admin: verify password and store in sessionStorage
+  const handleUnlock = async () => {
+    const pw = adminPassword.trim();
+    if (!pw) {
+      window.alert("請輸入管理員密碼");
+      return;
+    }
+    // Quick verification by calling the batch endpoint with a dummy name
+    try {
+      const res = await fetch("/api/players/batch", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ names: ["__verify__"], password: pw }),
+      });
+      if (!res.ok) {
+        window.alert("管理員密碼錯誤");
+        return;
+      }
+    } catch {
+      window.alert("無法驗證密碼，請檢查網路連線");
+      return;
+    }
+    sessionStorage.setItem("boardgame_admin_pw", pw);
+    setAdminUnlocked(true);
+    setAdminSectionOpen(false);
+  };
+
+  // Lock admin: clear from sessionStorage
+  const handleLock = () => {
+    sessionStorage.removeItem("boardgame_admin_pw");
+    setAdminPassword("");
+    setAdminUnlocked(false);
+  };
+
   // Submit handler
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!gameName.trim()) {
       window.alert("請輸入遊戲名稱。");
       return;
@@ -267,6 +313,22 @@ export default function AddPlayLogModal({
     });
 
     if (newLog) {
+      // Sync player names to localStorage player library for autocomplete
+      const playerNames = validPlayers.map((p) => p.name.trim());
+      ensurePlayersExist(playerNames);
+
+      // If admin unlocked, also sync to Notion Players DB
+      const pw = sessionStorage.getItem("boardgame_admin_pw");
+      if (pw) {
+        fetch("/api/players/batch", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ names: playerNames, password: pw }),
+        }).catch(() => {
+          // Silently ignore – Notion sync failure is non-critical
+        });
+      }
+
       onSaved();
     }
   };
@@ -593,6 +655,70 @@ export default function AddPlayLogModal({
                 rows={3}
                 className="input-euro w-full rounded-lg resize-none"
               />
+            </div>
+
+            {/* Admin Section – unlock once, sync to Notion for the session */}
+            <div className="border-t border-grid-line pt-4">
+              {adminUnlocked ? (
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-euro-green font-semibold">
+                    ✓ 管理員已解鎖 — 新玩家將同步到 Notion
+                  </span>
+                  <button
+                    type="button"
+                    onClick={handleLock}
+                    className="text-xs text-ink-muted hover:text-wax-red transition-colors"
+                  >
+                    鎖定
+                  </button>
+                </div>
+              ) : (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => setAdminSectionOpen(!adminSectionOpen)}
+                    className="flex items-center gap-1.5 text-xs text-ink-muted hover:text-ink transition-colors"
+                  >
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      className={`h-3.5 w-3.5 transition-transform ${adminSectionOpen ? "rotate-90" : ""}`}
+                      viewBox="0 0 20 20"
+                      fill="currentColor"
+                    >
+                      <path
+                        fillRule="evenodd"
+                        d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z"
+                        clipRule="evenodd"
+                      />
+                    </svg>
+                    管理員選項（同步玩家到 Notion）
+                  </button>
+                  {adminSectionOpen && (
+                    <div className="mt-3 flex gap-2 items-end">
+                      <div className="flex-1">
+                        <label className="mb-1.5 block font-heading text-xs font-semibold uppercase tracking-wider text-ink-light">
+                          管理員密碼
+                        </label>
+                        <input
+                          type="password"
+                          value={adminPassword}
+                          onChange={(e) => setAdminPassword(e.target.value)}
+                          onKeyDown={(e) => { if (e.key === 'Enter') handleUnlock(); }}
+                          placeholder="輸入管理員密碼"
+                          className="input-euro w-full rounded-lg"
+                        />
+                      </div>
+                      <button
+                        type="button"
+                        onClick={handleUnlock}
+                        className="btn-euro rounded-lg text-sm whitespace-nowrap mb-px"
+                      >
+                        解鎖
+                      </button>
+                    </div>
+                  )}
+                </>
+              )}
             </div>
           </div>
         </div>
