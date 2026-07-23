@@ -59,7 +59,18 @@ export default function GameGallery({ initialGames }: GameGalleryProps) {
 
   // Search & View Mode
   const [searchTerm, setSearchTerm] = useState("");
-  const [viewMode, setViewMode] = useLocalStorage<ViewMode>(VIEW_MODE_KEY, "grid");
+  const [viewMode, setViewMode] = useLocalStorage<ViewMode>(VIEW_MODE_KEY, "card");
+
+  // Migration: force card mode for existing users who had "grid" saved in localStorage
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(VIEW_MODE_KEY);
+      if (saved === '"grid"') {
+        localStorage.setItem(VIEW_MODE_KEY, JSON.stringify("card"));
+        setViewMode("card");
+      }
+    } catch {}
+  }, [setViewMode]);
 
   // On mount, restore auth token from localStorage
   useEffect(() => {
