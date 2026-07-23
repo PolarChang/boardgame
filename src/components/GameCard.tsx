@@ -15,7 +15,7 @@ function VintageImage({ src, alt, fill, className, sizes }: { src: string; alt: 
         alt={alt}
         fill
         sizes={sizes}
-        className="object-contain"
+        className="object-cover"
       />
       {/* Warm sepia tint overlay */}
       <div
