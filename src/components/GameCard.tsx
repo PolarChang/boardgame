@@ -161,7 +161,7 @@ export default function GameCard({ game, mode = "card", isAdmin = false, adminPa
     );
   }
 
-  // --- Grid Mode (compact 2-col card) ---
+  // --- Grid Mode ---
   if (mode === "grid") {
     return (
       <>
@@ -169,7 +169,7 @@ export default function GameCard({ game, mode = "card", isAdmin = false, adminPa
           <button
             type="button"
             onClick={() => setOpen(true)}
-            className="relative aspect-[3/2] cursor-pointer bg-parchment-dark text-left"
+            className="relative h-56 cursor-pointer bg-parchment-dark text-left"
           >
             {game.image ? (
               <VintageImage
@@ -177,7 +177,7 @@ export default function GameCard({ game, mode = "card", isAdmin = false, adminPa
                 alt={primaryName}
                 fill
                 sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
-                className="transition-transform duration-200 group-hover:scale-[1.05] p-3"
+                className="transition-transform duration-200 group-hover:scale-[1.05]"
               />
             ) : (
               <div className="flex h-full items-center justify-center text-xs text-ink-muted">
