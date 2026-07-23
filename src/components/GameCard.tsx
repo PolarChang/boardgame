@@ -6,37 +6,6 @@ import type { NotionGame } from "@/lib/types";
 import type { ViewMode } from "./ViewToggle";
 import PlayRecordModal from "./PlayRecordModal";
 
-/* Vintage Analog: warm sepia overlay for images */
-function VintageImage({ src, alt, fill, className, sizes }: { src: string; alt: string; fill?: boolean; className?: string; sizes?: string }) {
-  return (
-    <div className={`relative overflow-hidden ${className ?? ""}`}>
-      <Image
-        src={src}
-        alt={alt}
-        fill
-        sizes={sizes}
-        className="object-cover"
-      />
-      {/* Warm sepia tint overlay */}
-      <div
-        className="pointer-events-none absolute inset-0 mix-blend-overlay opacity-20"
-        style={{
-          background:
-            "linear-gradient(180deg, rgba(212,165,116,0.4) 0%, rgba(168,67,67,0.15) 100%)",
-        }}
-      />
-      {/* Subtle vignette */}
-      <div
-        className="pointer-events-none absolute inset-0"
-        style={{
-          background:
-            "radial-gradient(circle at center, transparent 60%, rgba(45,36,30,0.25) 100%)",
-        }}
-      />
-    </div>
-  );
-}
-
 interface GameCardProps {
   game: NotionGame;
   mode?: ViewMode;
@@ -88,12 +57,12 @@ export default function GameCard({ game, mode = "card", isAdmin = false, adminPa
             className="relative h-48 cursor-pointer bg-parchment-dark text-left"
           >
             {game.image ? (
-              <VintageImage
+              <Image
                 src={game.image}
                 alt={primaryName}
                 fill
                 sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
-                className="transition-transform duration-200 group-hover:scale-[1.05] p-2"
+                className="object-contain transition-transform duration-200 group-hover:scale-[1.05] p-2"
               />
             ) : (
               <div className="flex h-full items-center justify-center text-xs text-ink-muted">
@@ -161,7 +130,7 @@ export default function GameCard({ game, mode = "card", isAdmin = false, adminPa
     );
   }
 
-  // --- Grid Mode ---
+  // --- Grid Mode (compact 2-col card) ---
   if (mode === "grid") {
     return (
       <>
@@ -169,15 +138,15 @@ export default function GameCard({ game, mode = "card", isAdmin = false, adminPa
           <button
             type="button"
             onClick={() => setOpen(true)}
-            className="relative h-56 cursor-pointer bg-parchment-dark text-left"
+            className="relative aspect-[4/3] cursor-pointer bg-parchment-dark text-left"
           >
             {game.image ? (
-              <VintageImage
+              <Image
                 src={game.image}
                 alt={primaryName}
                 fill
                 sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
-                className="transition-transform duration-200 group-hover:scale-[1.05]"
+                className="object-cover transition-transform duration-200 group-hover:scale-[1.05] p-1.5"
               />
             ) : (
               <div className="flex h-full items-center justify-center text-xs text-ink-muted">
@@ -185,37 +154,37 @@ export default function GameCard({ game, mode = "card", isAdmin = false, adminPa
               </div>
             )}
             {game.type === 'Expansion' && (
-              <div className="absolute left-2 top-2">
-                <span className="rounded-full bg-euro-blue px-2 py-0.5 text-[10px] font-bold text-parchment">🧩 擴充</span>
+              <div className="absolute left-1.5 top-1.5">
+                <span className="rounded-full bg-euro-blue px-1.5 py-0.5 text-[9px] font-bold text-parchment">🧩 擴充</span>
               </div>
             )}
             {game.ownership === 'Played Elsewhere' && (
-              <div className="absolute left-2 top-2">
-                <span className="rounded-full bg-sepia px-2 py-0.5 text-[10px] font-bold text-parchment">☕ 外出</span>
+              <div className="absolute left-1.5 top-1.5">
+                <span className="rounded-full bg-sepia px-1.5 py-0.5 text-[9px] font-bold text-parchment">☕ 外出</span>
               </div>
             )}
-            <div className="absolute right-2 top-2 flex items-center gap-1 rounded-full bg-ink/60 px-2 py-1">
-              <span className="text-[10px] font-bold text-brass">{game.complexity > 0 ? game.complexity.toFixed(1) : '-'}</span>
+            <div className="absolute right-1.5 top-1.5 flex items-center gap-1 rounded-full bg-ink/60 px-1.5 py-0.5">
+              <span className="text-[9px] font-bold text-brass">{game.complexity > 0 ? game.complexity.toFixed(1) : '-'}</span>
             </div>
           </button>
 
-          <div className="flex flex-1 flex-col gap-2 p-4">
-            <h2 className="font-heading text-sm font-bold leading-snug text-ink line-clamp-2">
+          <div className="flex flex-1 flex-col gap-1.5 p-3">
+            <h2 className="font-heading text-xs font-bold leading-snug text-ink line-clamp-2">
               {primaryName}
             </h2>
             {hasChineseName && (
-              <p className="truncate text-xs text-ink-muted">{game.name}</p>
+              <p className="truncate text-[10px] text-ink-muted">{game.name}</p>
             )}
-            <div className="mt-auto flex flex-wrap gap-1.5 pt-2">
-              <span className="rounded-full border border-grid-line bg-parchment px-2 py-0.5 text-[10px] font-medium text-ink-light">
+            <div className="mt-auto flex flex-wrap gap-1 pt-1">
+              <span className="rounded-full border border-grid-line bg-parchment px-1.5 py-0.5 text-[9px] font-medium text-ink-light">
                 {game.minPlayers}–{game.maxPlayers}人
               </span>
               {bestPlayersDisplay && (
-                <span className="rounded-full border border-brass/30 bg-brass/10 px-2 py-0.5 text-[10px] font-medium text-ink-light">
+                <span className="rounded-full border border-brass/30 bg-brass/10 px-1.5 py-0.5 text-[9px] font-medium text-ink-light">
                   ★{bestPlayersDisplay}
                 </span>
               )}
-              <span className="rounded-full border border-grid-line bg-parchment px-2 py-0.5 text-[10px] font-medium text-ink-light">
+              <span className="rounded-full border border-grid-line bg-parchment px-1.5 py-0.5 text-[9px] font-medium text-ink-light">
                 {game.playTime > 0 ? `${game.playTime}分` : '?'}
               </span>
             </div>
@@ -248,12 +217,12 @@ export default function GameCard({ game, mode = "card", isAdmin = false, adminPa
         {/* Thumbnail */}
         <div className="relative h-14 w-14 flex-shrink-0 overflow-hidden rounded-md bg-parchment-dark">
           {game.image ? (
-            <VintageImage
+            <Image
               src={game.image}
               alt={primaryName}
               fill
               sizes="56px"
-              className="p-1"
+              className="object-contain p-1"
             />
           ) : (
             <div className="flex h-full items-center justify-center text-[9px] text-ink-muted">
