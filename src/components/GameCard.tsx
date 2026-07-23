@@ -169,7 +169,7 @@ export default function GameCard({ game, mode = "card", isAdmin = false, adminPa
           <button
             type="button"
             onClick={() => setOpen(true)}
-            className="relative aspect-[4/3] cursor-pointer bg-parchment-dark text-left"
+            className="relative aspect-[3/2] cursor-pointer bg-parchment-dark text-left"
           >
             {game.image ? (
               <VintageImage
@@ -177,7 +177,7 @@ export default function GameCard({ game, mode = "card", isAdmin = false, adminPa
                 alt={primaryName}
                 fill
                 sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
-                className="transition-transform duration-200 group-hover:scale-[1.05] p-1.5"
+                className="transition-transform duration-200 group-hover:scale-[1.05] p-3"
               />
             ) : (
               <div className="flex h-full items-center justify-center text-xs text-ink-muted">
@@ -185,37 +185,37 @@ export default function GameCard({ game, mode = "card", isAdmin = false, adminPa
               </div>
             )}
             {game.type === 'Expansion' && (
-              <div className="absolute left-1.5 top-1.5">
-                <span className="rounded-full bg-euro-blue px-1.5 py-0.5 text-[9px] font-bold text-parchment">🧩 擴充</span>
+              <div className="absolute left-2 top-2">
+                <span className="rounded-full bg-euro-blue px-2 py-0.5 text-[10px] font-bold text-parchment">🧩 擴充</span>
               </div>
             )}
             {game.ownership === 'Played Elsewhere' && (
-              <div className="absolute left-1.5 top-1.5">
-                <span className="rounded-full bg-sepia px-1.5 py-0.5 text-[9px] font-bold text-parchment">☕ 外出</span>
+              <div className="absolute left-2 top-2">
+                <span className="rounded-full bg-sepia px-2 py-0.5 text-[10px] font-bold text-parchment">☕ 外出</span>
               </div>
             )}
-            <div className="absolute right-1.5 top-1.5 flex items-center gap-1 rounded-full bg-ink/60 px-1.5 py-0.5">
-              <span className="text-[9px] font-bold text-brass">{game.complexity > 0 ? game.complexity.toFixed(1) : '-'}</span>
+            <div className="absolute right-2 top-2 flex items-center gap-1 rounded-full bg-ink/60 px-2 py-1">
+              <span className="text-[10px] font-bold text-brass">{game.complexity > 0 ? game.complexity.toFixed(1) : '-'}</span>
             </div>
           </button>
 
-          <div className="flex flex-1 flex-col gap-1.5 p-3">
-            <h2 className="font-heading text-xs font-bold leading-snug text-ink line-clamp-2">
+          <div className="flex flex-1 flex-col gap-2 p-4">
+            <h2 className="font-heading text-sm font-bold leading-snug text-ink line-clamp-2">
               {primaryName}
             </h2>
             {hasChineseName && (
-              <p className="truncate text-[10px] text-ink-muted">{game.name}</p>
+              <p className="truncate text-xs text-ink-muted">{game.name}</p>
             )}
-            <div className="mt-auto flex flex-wrap gap-1 pt-1">
-              <span className="rounded-full border border-grid-line bg-parchment px-1.5 py-0.5 text-[9px] font-medium text-ink-light">
+            <div className="mt-auto flex flex-wrap gap-1.5 pt-2">
+              <span className="rounded-full border border-grid-line bg-parchment px-2 py-0.5 text-[10px] font-medium text-ink-light">
                 {game.minPlayers}–{game.maxPlayers}人
               </span>
               {bestPlayersDisplay && (
-                <span className="rounded-full border border-brass/30 bg-brass/10 px-1.5 py-0.5 text-[9px] font-medium text-ink-light">
+                <span className="rounded-full border border-brass/30 bg-brass/10 px-2 py-0.5 text-[10px] font-medium text-ink-light">
                   ★{bestPlayersDisplay}
                 </span>
               )}
-              <span className="rounded-full border border-grid-line bg-parchment px-1.5 py-0.5 text-[9px] font-medium text-ink-light">
+              <span className="rounded-full border border-grid-line bg-parchment px-2 py-0.5 text-[10px] font-medium text-ink-light">
                 {game.playTime > 0 ? `${game.playTime}分` : '?'}
               </span>
             </div>
