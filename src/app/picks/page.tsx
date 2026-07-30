@@ -7,7 +7,7 @@ import {
 } from '@/lib/boardgamenews';
 import { extractGamesFromPayload, getVisiblePlayerCountSections, normalizeCloudGamesToPlayerSections } from '@/lib/picks';
 
-const DEFAULT_ALL_GAMES_URL = 'https://drive.google.com/uc?export=download&id=1KklAwSPQD5nCFIxgQLF5-9V-J1qxNik7';
+const DEFAULT_ALL_GAMES_URL = 'https://drive.google.com/uc?export=download&id=1iDZSWtUakQ9gOkpYnQcWxoJ2lS9aLaFT';
 
 async function getPicks(): Promise<BoardGameNewsData> {
   const cloudUrl = process.env.ALL_GAMES_JSON_URL ?? DEFAULT_ALL_GAMES_URL;
