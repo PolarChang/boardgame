@@ -285,7 +285,27 @@ export default async function PicksPage({
 }
 
 async function PicksContent({ selectedCount }: { selectedCount: number | null }) {
-  const data = await getPicks();
+  let data: BoardGameNewsData;
+  let loadError: string | null = null;
+
+  try {
+    data = await getPicks();
+  } catch (err) {
+    data = {};
+    loadError = err instanceof Error ? err.message : '無法載入精選推薦資料';
+  }
+
+  if (loadError) {
+    return (
+      <div className='rounded-sm border border-wax-red/40 bg-wax-red/5 p-6 text-sm text-ink-light'>
+        <p className='font-semibold text-wax-red mb-2'>⚠️ {loadError}</p>
+        <p className='text-xs text-ink-muted'>
+          資料來源暫時無法存取，請稍後再試。
+        </p>
+      </div>
+    );
+  }
+
   const sections = getVisiblePlayerCountSections(data, selectedCount);
 
   if (sections.length === 0) {

@@ -471,12 +471,13 @@ export async function getDetailedPlayLogs(): Promise<PlayLog[]> {
   const gamesDbId = process.env.NOTION_DATABASE_ID;
 
   if (!playsDbId) throw new Error("NOTION_PLAYS_DB_ID is not set");
-  if (!playerScoresDbId) throw new Error("NOTION_PLAYER_SCORES_DB_ID is not set");
   if (!playersDbId) throw new Error("NOTION_PLAYERS_DB_ID is not set");
 
-  // Fetch all 4 databases in PARALLEL (with caching)
+  // Fetch databases in PARALLEL (with caching) — Player Scores is optional
   const fetchPlays = queryAllPagesCached(playsDbId, undefined, CACHE_KEY_PLAYS);
-  const fetchScores = queryAllPagesCached(playerScoresDbId, undefined, CACHE_KEY_SCORES);
+  const fetchScores = playerScoresDbId
+    ? queryAllPagesCached(playerScoresDbId, undefined, CACHE_KEY_SCORES)
+    : Promise.resolve([] as PageObjectResponse[]);
   const fetchPlayers = queryAllPagesCached(playersDbId, undefined, CACHE_KEY_PLAYERS);
   const fetchGames = gamesDbId
     ? queryAllPagesCached(gamesDbId, undefined, CACHE_KEY_GAMES)
@@ -533,20 +534,35 @@ export async function getDetailedPlayLogs(): Promise<PlayLog[]> {
     const relatedScores = scoresByPlayId.get(playId) || [];
 
     const players: PlayLogPlayer[] = [];
-    for (const sp of relatedScores) {
-      const spProps = sp.properties;
-      const pIds = extractRelationIds(spProps[PLAYER_SCORES_PLAYER_PROP]);
-      const playerId = pIds[0] || "";
-      const score = extractNumber(spProps[PLAYER_SCORES_SCORE_PROP]);
-      const isWinner = extractCheckbox(spProps[PLAYER_SCORES_IS_WINNER_PROP]);
-      const playerName = playerNameMap.get(playerId) || "Unknown";
+    if (relatedScores.length > 0) {
+      // Build players from Player Scores database (detailed scores)
+      for (const sp of relatedScores) {
+        const spProps = sp.properties;
+        const pIds = extractRelationIds(spProps[PLAYER_SCORES_PLAYER_PROP]);
+        const playerId = pIds[0] || "";
+        const score = extractNumber(spProps[PLAYER_SCORES_SCORE_PROP]);
+        const isWinner = extractCheckbox(spProps[PLAYER_SCORES_IS_WINNER_PROP]);
+        const playerName = playerNameMap.get(playerId) || "Unknown";
 
-      players.push({
-        name: playerName,
-        score,
-        isWinner,
-        factionOrColor: undefined,
-      });
+        players.push({
+          name: playerName,
+          score,
+          isWinner,
+          factionOrColor: undefined,
+        });
+      }
+    } else {
+      // Fallback: extract player names from the "Players" relation property
+      const playerIds = extractRelationIds(props[PLAYS_PLAYERS_PROP]);
+      for (const playerId of playerIds) {
+        const playerName = playerNameMap.get(playerId) || "Unknown";
+        players.push({
+          name: playerName,
+          score: 0,
+          isWinner: false,
+          factionOrColor: undefined,
+        });
+      }
     }
 
     logs.push({

@@ -226,10 +226,10 @@ export default function DashboardClient() {
     totalPlays > 0
       ? Math.round(
           playLogs.reduce(
-            (sum, log) =>
-              sum +
-              log.players.reduce((s, p) => s + p.score, 0) /
-                log.players.length,
+            (sum, log) => {
+              if (log.players.length === 0) return sum;
+              return sum + log.players.reduce((s, p) => s + p.score, 0) / log.players.length;
+            },
             0
           ) / totalPlays
         )
