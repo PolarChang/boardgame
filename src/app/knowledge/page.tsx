@@ -119,10 +119,25 @@ export default function KnowledgePage() {
     formData.set("language", language);
 
     try {
-      const response = await fetch(`/api/rules/knowledge/games/${encodeURIComponent(selectedGameId)}/rulebooks`, {
-        method: "POST",
-        body: formData,
+      setNotice("準備安全直傳至雲端儲存空間…");
+      const uploadRequest = await fetch(`/api/rules/knowledge/games/${encodeURIComponent(selectedGameId)}/rulebooks/upload-url`, {
+        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ filename: uploadedFilename }),
       });
+      const uploadData = await uploadRequest.json() as { upload_url?: string; object_name?: string; detail?: string; error?: string };
+      let response: Response;
+      if (uploadRequest.ok && uploadData.upload_url && uploadData.object_name) {
+        setNotice("正在將 PDF 直接上傳至 Cloud Storage…");
+        const put = await fetch(uploadData.upload_url, { method: "PUT", headers: { "Content-Type": "application/pdf" }, body: rulebook });
+        if (!put.ok) throw new Error("PDF 上傳至 Cloud Storage 失敗");
+        setNotice("PDF 已上傳，正在擷取與整理規則…");
+        response = await fetch(`/api/rules/knowledge/games/${encodeURIComponent(selectedGameId)}/rulebooks/import`, {
+          method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ object_name: uploadData.object_name, filename: uploadedFilename, version: version.trim() || undefined, language }),
+        });
+      } else if (uploadRequest.status === 503) {
+        response = await fetch(`/api/rules/knowledge/games/${encodeURIComponent(selectedGameId)}/rulebooks`, { method: "POST", body: formData });
+      } else {
+        throw new Error(uploadData.detail || uploadData.error || "無法建立安全上傳連結");
+      }
       const data = await response.json() as KnowledgeRulebookImportResult & { detail?: string; error?: string };
       if (!response.ok) throw new Error(data.detail || data.error || "上傳規則書失敗");
       setRulebook(null);
