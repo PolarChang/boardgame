@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
 const RULES_API_URL = process.env.BOARDGAME_RULES_API_URL || "http://localhost:8000";
+const RULES_API_KEY = process.env.RULES_API_KEY;
 
 export async function POST(req: NextRequest) {
   try {
@@ -13,7 +14,10 @@ export async function POST(req: NextRequest) {
 
     const response = await fetch(`${RULES_API_URL}/api/query`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        ...(RULES_API_KEY ? { "X-Rules-API-Key": RULES_API_KEY } : {}),
+      },
       body: JSON.stringify({ query, game, top_k: top_k || 5 }),
     });
 

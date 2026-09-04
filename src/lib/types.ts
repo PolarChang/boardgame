@@ -15,6 +15,8 @@ export interface NotionGame {
   bggId: number;
   name: string;
   chineseName?: string;
+  designer?: string;
+  publisher?: string;
   comment?: string;
   type?: 'Base' | 'Expansion';
   ownership?: 'Owned' | 'Played Elsewhere';

@@ -121,6 +121,8 @@ function parseNotionPage(page: PageObjectResponse): NotionGame | null {
   const bggId = extractNumber(props["BGG ID"]);
   const name = extractTitle(props["Game Title"]);
   const chineseName = extractTitleOrRichText(props["Chinese Name"]);
+  const designer = extractTitleOrRichText(props.Designer ?? props["Designer"]);
+  const publisher = extractTitleOrRichText(props.Publisher ?? props["Publisher"]);
   const comment = extractTitleOrRichText(props.Comment ?? props["Comment"]);
 
   const rawType = extractSelect(props["Type"]);
@@ -140,6 +142,8 @@ function parseNotionPage(page: PageObjectResponse): NotionGame | null {
     bggId,
     name,
     chineseName,
+    designer,
+    publisher,
     comment,
     type,
     ownership,

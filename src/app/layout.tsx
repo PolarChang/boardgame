@@ -96,6 +96,12 @@ export default function RootLayout({
               >
                 規則查詢
               </Link>
+              <Link
+                href="/knowledge"
+                className="rounded-lg px-3 py-1.5 text-sm font-semibold text-ink-light transition hover:bg-brass/10 hover:text-ink"
+              >
+                規則管理
+              </Link>
             </nav>
           </div>
         </header>

@@ -1,12 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 
 const RULES_API_URL = process.env.BOARDGAME_RULES_API_URL || "http://localhost:8000";
+const RULES_API_KEY = process.env.RULES_API_KEY;
 
 export async function GET() {
   try {
     const response = await fetch(`${RULES_API_URL}/api/games`, {
       method: "GET",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        ...(RULES_API_KEY ? { "X-Rules-API-Key": RULES_API_KEY } : {}),
+      },
     });
 
     if (!response.ok) {

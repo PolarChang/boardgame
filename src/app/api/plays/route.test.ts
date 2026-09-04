@@ -8,6 +8,7 @@ vi.mock('@/lib/notion', () => ({
   createPlaySession: vi.fn(),
   createPlayerScore: vi.fn(),
   deletePlaySession: vi.fn(),
+  invalidateDashboardCache: vi.fn(),
 }));
 
 describe('POST /api/plays', () => {
