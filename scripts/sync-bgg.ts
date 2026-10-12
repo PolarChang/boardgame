@@ -60,7 +60,7 @@ const THING_BATCH_SIZE = 20;
 function getBggAxiosHeaders(): Record<string, string> {
   const headers: Record<string, string> = {
     "User-Agent":
-      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+      "BoardgameCollectionSync/1.0 (https://github.com/PolarChang/boardgame)",
     Accept: "application/xml, text/xml, */*",
   };
 
@@ -128,12 +128,20 @@ async function fetchBggXml(url: string, label: string): Promise<string> {
   console.log(`正在抓取 BGG ${label}...`);
   console.log(`  URL: ${url}`);
 
-  while (true) {
+  for (let attempt = 1; attempt <= 20; attempt += 1) {
     const response = await axios.get<string>(url, {
       headers: getBggAxiosHeaders(),
       responseType: "text",
-      validateStatus: (status) => status === 200 || status === 202,
+      timeout: 30000,
+      validateStatus: () => true,
     });
+
+    if (response.status === 403 && response.headers["cf-mitigated"] === "challenge") {
+      throw new Error(`BGG ${label}: Cloudflare blocked this execution environment (HTTP 403). Verify the application token and retry from an allowed runner.`);
+    }
+    if (response.status !== 200 && response.status !== 202) {
+      throw new Error(`BGG ${label}: HTTP ${response.status}. For 401/403, verify BGG_AUTH_VALUE contains an approved application's Bearer token.`);
+    }
 
     if (response.status === 202) {
       console.log(
@@ -147,6 +155,7 @@ async function fetchBggXml(url: string, label: string): Promise<string> {
     console.log(`BGG ${label} 抓取成功 (${text.length} bytes)`);
     return text;
   }
+  throw new Error(`BGG ${label}: still processing after 20 attempts; retry later.`);
 }
 
 function extractCollectionObjectIds(xml: string): number[] {
@@ -371,7 +380,10 @@ async function syncToNotion(
 
   console.log(`\n開始同步 ${games.length} 款遊戲至 Notion...\n`);
 
-  for (const game of games) {
+  // Finish updates before creating pages: a full Notion workspace can reject
+  // new pages while existing collection records still need fresh ratings.
+  const orderedGames = [...games].sort((a, b) => Number(existing.has(b.bggId)) - Number(existing.has(a.bggId)));
+  for (const game of orderedGames) {
     const record = existing.get(game.bggId);
     const properties = buildSyncProperties(game);
 
@@ -446,6 +458,7 @@ async function main() {
 }
 
 main().catch((err) => {
-  console.error("\n❌ 同步失敗：", err);
+  // Axios errors include request headers; never print credentials to CI logs.
+  console.error("\n❌ 同步失敗：", err instanceof Error ? err.message : "Unknown error");
   process.exit(1);
 });
