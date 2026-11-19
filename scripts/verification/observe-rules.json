@@ -1,0 +1,12 @@
+{
+  "schema": 1,
+  "mode": "observe",
+  "rules": [
+    { "id": "code", "patterns": ["^src/", "^scripts/", "^package(-lock)?\\.json$", "^.*config\\.[^/]+$"], "checks": ["test", "lint", "build"] },
+    { "id": "browser", "patterns": ["^src/(app|components|hooks)/"], "checks": ["verify"] },
+    { "id": "publication-auth", "patterns": ["^src/.*(editorial-session|EditorialLogin|manage/|api/rules/knowledge)"], "checks": ["verify:integration", "verify:integration:calibrate"] },
+    { "id": "source-pdf", "patterns": ["^src/.*(RuleImageViewer|ImportSourceImages|editorial-reader|reader/source|imports/.*/source)"], "checks": ["verify:pdf"] },
+    { "id": "data-transform", "patterns": ["^src/lib/(picks|editorial|editorial-reader)\\.ts$"], "checks": ["verify:properties", "verify:differential"] },
+    { "id": "verifiers", "patterns": ["^scripts/verification/", "^vitest\\.config", "^package(-lock)?\\.json$", "^\\.github/workflows/verification", "^AGENTS\\.md$", "^docs/verification-mechanism\\.md$"], "checks": ["verify:calibrate", "verify:integration:calibrate"], "humanReview": true }
+  ]
+}

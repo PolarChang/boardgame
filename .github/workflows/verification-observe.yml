@@ -1,0 +1,68 @@
+name: Verification rules (observe)
+on:
+  pull_request_target:
+    types: [opened, synchronize, reopened]
+  workflow_run:
+    workflows: [Verification candidate (observe)]
+    types: [completed]
+permissions:
+  contents: read
+  pull-requests: read
+jobs:
+  observe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Resolve immutable PR revisions using trusted event data
+        id: pr
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const number = context.payload.pull_request?.number ?? context.payload.workflow_run?.pull_requests?.[0]?.number;
+            if (!number) { core.setOutput('skip', 'true'); return; }
+            const {data: pr} = await github.rest.pulls.get({...context.repo, pull_number:number});
+            core.setOutput('base', pr.base.sha);
+            core.setOutput('head', pr.head.sha);
+            core.setOutput('number', String(number));
+      - uses: actions/checkout@v4
+        if: steps.pr.outputs.skip != 'true'
+        with:
+          ref: ${{ steps.pr.outputs.base }}
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        if: steps.pr.outputs.skip != 'true'
+        with:
+          node-version: '24'
+      - name: Read diff metadata only; never checkout or execute candidate code
+        if: steps.pr.outputs.skip != 'true'
+        uses: actions/github-script@v7
+        env:
+          PR_NUMBER: ${{ steps.pr.outputs.number }}
+          BASE_SHA: ${{ steps.pr.outputs.base }}
+          HEAD_SHA: ${{ steps.pr.outputs.head }}
+        with:
+          script: |
+            const fs = require('node:fs');
+            const files = await github.paginate(github.rest.pulls.listFiles, {...context.repo,pull_number:Number(process.env.PR_NUMBER),per_page:100});
+            const {data: current} = await github.rest.pulls.get({...context.repo,pull_number:Number(process.env.PR_NUMBER)});
+            if (current.head.sha !== process.env.HEAD_SHA || current.base.sha !== process.env.BASE_SHA) throw new Error('PR changed during observation; rerun on current SHA');
+            if (current.changed_files !== files.length) throw new Error('Incomplete changed-file inventory; human review required');
+            // A stale workflow run is deliberately unable to attest a newer revision.
+            const input = {base:process.env.BASE_SHA,candidate:process.env.HEAD_SHA,files:files.flatMap(f => [f.filename,...(f.previous_filename ? [f.previous_filename] : [])]),evidence:null};
+            fs.mkdirSync('tmp/verification/observe',{recursive:true});
+            fs.writeFileSync('tmp/verification/observe/input.json',JSON.stringify(input));
+      - name: Observe trusted-base requirements
+        if: steps.pr.outputs.skip != 'true'
+        env:
+          VERIFICATION_OBSERVE_INPUT: tmp/verification/observe/input.json
+        run: node scripts/verification/observe.mjs
+      - name: Summarize without enforcing
+        if: steps.pr.outputs.skip != 'true'
+        run: |
+          echo '## Verification observation (no enforcement)' >> "$GITHUB_STEP_SUMMARY"
+          cat tmp/verification/observe/result.json >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        if: always() && steps.pr.outputs.skip != 'true'
+        with:
+          name: trusted-verification-observation
+          path: tmp/verification/observe/

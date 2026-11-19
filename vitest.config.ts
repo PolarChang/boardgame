@@ -3,6 +3,7 @@ import path from 'path';
 
 export default defineConfig({
   test: {
+    exclude: ['**/node_modules/**', '**/tmp/**', '**/*.e2e.ts'],
     environment: 'jsdom',
     globals: true,
     setupFiles: ['./src/test/setup.ts'],
