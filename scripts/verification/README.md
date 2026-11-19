@@ -12,3 +12,5 @@ The candidate workflow checks out the exact PR head with read-only permissions a
 The observer runs trusted base code only, never candidate code or downloaded artifacts. It checks complete file inventory and stable SHA, then records requirements and wouldBlock reasons without enforcement. Candidate artifacts are explicitly untrusted. The observer cannot activate on the first PR until this workflow and its rules exist in the base/default branch; after review/merge it can observe a later PR or a completed candidate run. A local test is not a GitHub run.
 
 No model consumer, Notion/BGG write, deployment, secret configuration or repository policy changes are included.
+
+Temporary activation probe: this documentation-only change checks that the observer uses the immutable rules on main and reports verifier review requirements without enforcing them. Close this probe after collecting the workflow evidence.
