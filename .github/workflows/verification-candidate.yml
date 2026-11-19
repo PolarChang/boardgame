@@ -1,0 +1,57 @@
+name: Verification candidate (observe)
+on: [pull_request, workflow_dispatch]
+permissions:
+  contents: read
+jobs:
+  candidate-checks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - name: Unit and verifier tests
+        id: test
+        continue-on-error: true
+        run: npm test
+      - id: lint
+        continue-on-error: true
+        run: npm run lint
+      - id: build
+        continue-on-error: true
+        run: npm run build
+      - id: properties
+        continue-on-error: true
+        run: npm run verify:properties
+      - id: differential
+        continue-on-error: true
+        run: npm run verify:differential
+        env:
+          VERIFICATION_BASE: ${{ github.event.pull_request.base.sha || github.sha }}
+      - name: Record commit-bound outcomes without treating skipped flows as passed
+        if: always()
+        env:
+          CANDIDATE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          TEST_RESULT: ${{ steps.test.outcome }}
+          LINT_RESULT: ${{ steps.lint.outcome }}
+          BUILD_RESULT: ${{ steps.build.outcome }}
+          PROPERTY_RESULT: ${{ steps.properties.outcome }}
+          DIFFERENTIAL_RESULT: ${{ steps.differential.outcome }}
+        run: node scripts/verification/ci-report.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: candidate-verification-evidence-untrusted
+          path: |
+            tmp/verification/ci/
+            tmp/verification/differential/
+      - name: Surface failed checks (not a required merge gate)
+        if: always()
+        run: node scripts/verification/ci-report.mjs --check
