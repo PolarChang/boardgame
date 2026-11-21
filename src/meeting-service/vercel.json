@@ -1,0 +1,1 @@
+{"rewrites": [{"source": "/live/index.html", "destination": "/index.html"}, {"source": "/live/api/club", "destination": "/api/club"}, {"source": "/live/api/club.js", "destination": "/api/club"}]}

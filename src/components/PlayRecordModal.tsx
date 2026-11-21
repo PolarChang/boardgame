@@ -28,6 +28,7 @@ interface RecordFormState {
   date: string;
   location: string;
   notes: string;
+  gatheringPageId: string;
   isCoop: boolean;
   coopScenario: string;
   coopDifficulty: string;
@@ -53,6 +54,7 @@ function createInitialFormState(): RecordFormState {
     date: todayISODate(),
     location: "",
     notes: "",
+    gatheringPageId: "",
     isCoop: false,
     coopScenario: "",
     coopDifficulty: "",
@@ -78,11 +80,32 @@ export default function PlayRecordModal({
   const [plays, setPlays] = useState<PlayRecord[]>([]);
   const [playsLoading, setPlaysLoading] = useState(false);
   const [players, setPlayers] = useState<Player[]>([]);
+  const [gatherings, setGatherings] = useState<{ title: string; start: string; gatheringPageId: string }[]>([]);
   const [activeTab, setActiveTab] = useState<"history" | "add">("history");
   const [recordForm, setRecordForm] = useState<RecordFormState>(createInitialFormState());
   const [password, setPassword] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const effectivePassword = adminPassword ?? password;
+
+  useEffect(() => {
+    if (!open || activeTab !== "add" || !effectivePassword) return;
+    const controller = new AbortController();
+    void fetch("/api/meet", {
+      headers: { "x-boardgame-admin": effectivePassword },
+      cache: "no-store",
+      signal: controller.signal,
+    }).then(async response => {
+      if (!response.ok) return;
+      const result = await response.json();
+      if (!controller.signal.aborted && result.admin) {
+        setGatherings(result.events.filter((event: { gatheringPageId?: string }) => event.gatheringPageId));
+      }
+    }).catch(() => {});
+    return () => {
+      controller.abort();
+      setGatherings([]);
+    };
+  }, [open, activeTab, effectivePassword]);
 
   const filteredPlays = useMemo(() => {
     if (!viewerId) return plays;
@@ -219,10 +242,14 @@ export default function PlayRecordModal({
       };
       if (recordForm.location) payload.location = recordForm.location;
       if (recordForm.notes) payload.notes = recordForm.notes;
+      if (recordForm.gatheringPageId) payload.gatheringPageId = recordForm.gatheringPageId;
 
       const res = await fetch("/api/plays", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          ...(recordForm.gatheringPageId ? { "x-boardgame-admin": effectivePassword } : {}),
+        },
         body: JSON.stringify(payload),
       });
 
@@ -485,6 +512,24 @@ export default function PlayRecordModal({
                       />
                     </div>
 
+                    {gatherings.length > 0 && (
+                      <label className="flex flex-col gap-1.5 text-xs font-medium text-gray-500">
+                        聚會（選填）
+                        <select className="rounded-lg border p-2 text-sm"
+                          value={recordForm.gatheringPageId}
+                          onChange={event => {
+                            const gatheringPageId = event.target.value;
+                            setRecordForm(previous => ({ ...previous, gatheringPageId }));
+                          }}>
+                          <option value="">不關聯聚會</option>
+                          {gatherings.map(event => (
+                            <option key={event.gatheringPageId} value={event.gatheringPageId}>
+                              {event.start.slice(0, 10)} · {event.title}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                    )}
                     {/* Notes */}
                     <div className="flex flex-col gap-1.5">
                       <label className="text-xs font-medium text-gray-500">

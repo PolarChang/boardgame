@@ -11,6 +11,12 @@ export async function GET() {
       pageId: g.pageId,
       name: g.name,
       chineseName: g.chineseName,
+      image: g.image,
+      ownership: g.ownership,
+      type: g.type,
+      playTime: g.playTime,
+      minPlayers: g.minPlayers,
+      maxPlayers: g.maxPlayers,
       scoreFields: g.scoreFields,
       victoryConditions: g.victoryConditions,
     })).sort((a, b) => a.name.localeCompare(b.name));

@@ -1,0 +1,263 @@
+<!doctype html><html lang="zh-Hant"><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>我先算一下｜策略桌遊聚會</title><style>
+*{box-sizing:border-box}body{margin:0;background:#f5f3ee;color:#203830;font:16px/1.65 "DM Sans",system-ui,sans-serif}header,main{max-width:800px;margin:auto;padding:20px}header{display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #ccc}header b{font-size:21px}button,select,input,textarea{font:inherit;color:inherit}button{cursor:pointer;background:#174d41;color:white;border:0;border-radius:8px;padding:9px 16px;margin:4px 3px}button.alt{background:#e1e8df;color:#174d41}article,section{padding:24px;border-radius:18px;margin:16px 0;background:white}article{background:#174d41;color:white;position:relative;overflow:hidden}article:after{content:"⚄";position:absolute;right:16px;top:0;color:#bdd6aa;font:100px/1.3 Georgia;transform:rotate(12deg);opacity:.25;pointer-events:none}h1{font-size:clamp(27px,5vw,40px);line-height:1.2;margin:12px 0}h2{font-size:21px;margin:0 0 10px}p{margin:8px 0}small{color:#52675e}label{display:block;margin:9px 0}input:not([type=checkbox]),select,textarea{max-width:100%;width:100%;padding:9px;background:white;border:1px solid #a6b6ab;border-radius:6px}fieldset{border:0;padding:0;margin:12px 0}fieldset label{display:inline-block;margin-right:18px}.row{border-top:1px solid #dce3da;padding:12px 0}.muted{font-size:14px}.pill{display:inline-block;background:#def0be;color:#244633;border-radius:20px;padding:2px 12px}summary{cursor:pointer;font-weight:bold}button:focus-visible{outline:3px solid orange}details{padding:10px 0}details+details{border-top:1px solid #dce3da}textarea{resize:vertical}
+body{background:#f5f4ef;color:#252d29;font-variant-numeric:tabular-nums}header,main{max-width:920px}header{padding-block:12px}header b{font:600 24px Georgia,serif;letter-spacing:.04em}header button.alt{background:transparent;border:1px solid #a3afa6}article,section{background:#fffefa;color:#252d29;border:1px solid #d8dcd4;border-radius:12px;padding:24px}article{border-top:4px solid #235746}article:after{content:none}.pill{background:transparent;color:#275743;padding:0;font-weight:600}.sheet{display:flex;align-items:start;justify-content:space-between;gap:16px}h1{font-family:Georgia,"Noto Serif TC",serif;font-weight:600}dl{display:flex;gap:24px;margin:12px 0}dt,article small,.roster small{font-size:14px;color:#526157}dd{margin:0;font-weight:600;white-space:nowrap}.seatline{display:grid;grid-template-columns:repeat(6,1fr);gap:8px;margin:24px 0 12px}.seatline i{height:16px;border:1px solid #adb8ab;border-radius:4px;background:#efefe9}.seatline .taken{background:#285840;border-color:#285840}.seatline .threshold{outline:2px solid #466b55;outline-offset:2px}.seattext{margin-bottom:0}.roster{display:grid;grid-template-columns:minmax(76px,1fr) auto auto;align-items:center;gap:8px}.roster small{display:block}.roster label{display:flex;align-items:center;min-height:44px;margin:0}button,summary{min-height:44px}summary{padding:8px 0}button:hover{filter:brightness(.94)}a:focus-visible,textarea:focus-visible,select:focus-visible,button:focus-visible,summary:focus-visible,input:focus-visible{outline:2px solid #267453;outline-offset:2px}h2{font-weight:600}@media(max-width:600px){header,main{padding:12px 16px}.sheet{display:block}dl{margin:12px 0 0}.seatline{margin-top:16px}article,section{padding:16px}.roster{font-size:15px}}
+a{color:#765420}header{gap:12px;flex-wrap:wrap}header a{display:inline-flex;align-items:center;min-height:44px}button{max-width:100%;overflow-wrap:anywhere}body{overflow-wrap:anywhere}
+
+body{background:#f4efe3;color:#2b2620}header{border-color:#d9c9ad}.brand{font:600 19px Georgia,serif;color:#2d301f;text-decoration:none}article,section{background:#fffdf6;border-color:#dfd2bb}article{border-top-color:#86703e}
+.welcome{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:20px;background:#24483c;color:#fff9e9;border:0;border-radius:12px;min-height:180px}.welcome p{color:#f1e5ca}
+.table-mark{width:152px;padding:18px;border:1px solid #c4ac7a;border-radius:50%;display:grid;grid-template-columns:repeat(3,1fr);gap:10px;transform:rotate(-13deg)}.table-mark i{aspect-ratio:1;border:2px solid #e3d1aa;border-radius:50%}.table-mark i:nth-child(-n+4){background:#e3d1aa}
+.event-facts{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin:20px 0 10px}.event-facts div{background:#f2ebdc;border-radius:8px;padding:12px}.event-facts dd{white-space:normal}
+.collection-picker{background:#f3eddf;padding:12px;border-radius:8px;margin:6px 0 12px}.game-results{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}.game-option{margin:0;padding:6px;text-align:left;display:grid;align-content:start;gap:4px;background:#fffdf6;color:#28382d;border:1px solid #d6c7ab}.game-option img,.cover-placeholder{aspect-ratio:1.3;object-fit:cover;width:100%;border-radius:4px;background:#e8deca}.game-option strong,.game-option small{padding-inline:3px}.game-option strong{line-height:1.25}
+@media(max-width:600px){.welcome{min-height:142px;gap:8px}.table-mark{width:86px;gap:4px;padding:9px}.event-facts,.game-results{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.result-card{border-left:4px solid #285840}.arrival{margin:12px 0;padding:16px;background:#f2ebdc;border-radius:8px}.arrival h3{margin-top:0}.map-link{display:inline-flex;align-items:center;min-height:44px;margin-right:8px}.agenda{display:grid;grid-template-columns:auto minmax(0,1fr);gap:16px;align-items:start}.agenda-cover img{width:min(32vw,150px);aspect-ratio:1;object-fit:cover;border-radius:8px}.agenda h3{margin:0;font-size:23px}.regular-overview ul{padding:0;margin:0;list-style:none}.regular-overview li{display:flex;justify-content:space-between;align-items:center;gap:10px;padding-block:8px;border-top:1px solid #dfd2bb}.regular-overview li p{font-size:14px;margin:2px 0}.regular-overview button{flex:none}</style>
+<header><a class="brand" href="/">Board Game Collection</a><a href="/">返回桌遊清單</a></header><main><p role="status" id="msg"></p><div id="app"></div></main>
+<script type="module">
+const app=document.querySelector('#app'),msg=document.querySelector('#msg');
+let state,selected='',mine=false,adminMode=false,requestVersion=0;
+function adminPassword(){try{const saved=JSON.parse(localStorage.getItem('boardgame_auth_token')||'null');return saved&&saved.expiry>Date.now()&&typeof saved.password==='string'?saved.password:''}catch{return ''}}
+function authHeaders(){return adminMode?{'X-Boardgame-Admin':adminPassword()}:{}}
+const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const field=(name,label,value='',type='text',required=true)=>`<label>${label}<input type="${type}" name="${name}" value="${esc(value)}" ${required?'required':''}></label>`;
+const prefs=(v='')=>'<fieldset><legend>策略程度（可複選）</legend>'+['輕','中','重'].map(x=>`<label><input type="checkbox" name="pref" value="${x}" ${v.includes(x)?'checked':''}> ${x}</label>`).join('')+'</fieldset>';
+let collectionRequest;
+function collection(){
+ return collectionRequest??=fetch('/api/games').then(async response=>{
+ if(!response.ok)throw Error('收藏暫時無法載入');
+ const games=await response.json();
+ return games.filter(game=>game.ownership==='Owned'&&game.type!=='Expansion');
+ }).catch(error=>{collectionRequest=undefined;throw error});
+}
+function cover(url){
+ try{const image=new URL(url);return image.protocol==='https:'?esc(image.href):''}catch{return ''}
+}
+function wish(value='',name='wish',label='許願遊戲（選填）'){
+ return '<div class="wish"><label>'+esc(label)+'<input data-game-input maxlength="300" name="'+name+'" value="'+esc(value)+'" placeholder="輸入遊戲名稱"></label>'+button('browseCollection','從收藏挑選')+'<div class="collection-picker" hidden></div></div>';
+}
+function showGames(picker){
+ const query=picker.querySelector('input').value.trim().toLocaleLowerCase();
+ const matches=picker.games.filter(game=>[game.chineseName,game.name].some(name=>name?.toLocaleLowerCase().includes(query)));
+ picker.querySelector('.game-results').innerHTML=matches.slice(0,12).map(game=>{
+ const name=game.chineseName||game.name,image=cover(game.image);
+ return '<button class="game-option" type="button" data-cmd="pickGame" data-id="'+esc(name)+'">'+(image?'<img src="'+image+'" alt="" loading="lazy" onerror="this.hidden=true">':'<span class="cover-placeholder" aria-hidden="true"></span>')+'<strong>'+esc(name)+'</strong>'+(game.playTime?'<small>'+esc(game.playTime)+' 分鐘</small>':'')+'</button>';
+ }).join('');
+ picker.querySelector('[role="status"]').textContent=matches.length>12?'找到 '+matches.length+' 款，輸入名稱可縮小範圍':matches.length?'找到 '+matches.length+' 款':'找不到符合的收藏，可直接輸入遊戲名稱。';
+}
+const form=(action,inner,label)=>`<form data-action="${action}">${inner}<button type="submit">${label}</button></form>`;
+const button=(action,label,id='')=>`<button type="button" class="alt" data-cmd="${action}" ${action==='browseCollection'?'aria-expanded="false"':''} data-id="${esc(id)}">${label}</button>`;
+const fold=(title,content)=>`<details><summary>${title}</summary>${content}</details>`;
+function login(){state=null;adminMode=false;app.innerHTML='<article class="welcome"><div><h1>策略桌遊聚會</h1><p>4 位成團，席位依場次安排。每桌提供教學。</p></div><div class="table-mark" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i></div></article><section><h2>進入受邀場次</h2>'+form('login',field('key','個人邀請碼','','password'),'進入')+'</section><section><h2>主辦人</h2><p>沿用桌遊清單的管理員登入。</p>'+button('admin','團務後台')+'</section>'}
+async function request(action,data={}){const version=++requestVersion;const response=await fetch('/api/meet',action?{method:'POST',headers:{'Content-Type':'application/json',...authHeaders()},body:JSON.stringify({action,event:selected,...data})}:{cache:'no-store',headers:authHeaders()});const result=await response.json();if(version!==requestVersion)return;if(!response.ok){if(response.status===401)login();throw Error(result.error||'讀取失敗')}if(action==='logout'){login();return}if(result.selected)selected=result.selected;state=result;render();if(result.invite){const out=document.querySelector('#inviteOutput');out.closest("details").open=true;out.hidden=false;document.querySelector("#copyInvite").hidden=false;document.querySelector("#invName").textContent="給 "+result.recipient+" 的專屬連結";const params=new URLSearchParams({invite:result.invite});if(action==='invite'&&data.currentEvent&&state.events.some(event=>event.id===selected&&!event.draft))params.set('event',selected);out.value=location.origin+'/meet/index.html#'+params;out.select();msg.textContent='請複製這個專屬連結，私下交給一位玩家。'}}
+const hidden=(name,v)=>`<input type="hidden" name="${name}" value="${esc(v)}">`;
+function edit(e={},copy=false){
+ const agenda=wish(e.featuredGame,'featuredGame','本場主打')+wish(e.backupGame,'backupGame','備選遊戲')
+ +field('teachingMinutes','含教學預估分鐘',e.teachingMinutes,'number',false)
+ +field('teachingMode','教學方式',e.teachingMode,'text',false)
+ +field('nearby','鄰近捷運站或地標',e.nearby,'text',false)
+ +field('venueType','場地類型',e.venueType,'text',false);
+ return form(e.id&&!copy?'edit':'create',field('title','活動名稱',e.title)+field('area','區域',e.area,'text',false)+field('capacity','場次名額（最多九位）',e.capacity??6,'number')+field('start','開始（台灣時間）',copy?'':e.start,'datetime-local')+field('end','結束',copy?'':e.end,'datetime-local',false)+field('deadline','報名截止',copy?'':e.deadline,'datetime-local',false)+fold('本場主打與場地資訊',agenda)+`<label><input type="checkbox" name="draft" ${e.draft?'checked':''}>存為草稿</label>`,'儲存活動');
+}
+function featured(event){
+ if(!event.featuredGame&&!event.backupGame&&!event.teachingMode&&!event.teachingMinutes)return '';
+ return '<section class="agenda"><div class="agenda-cover" hidden></div><div><h2>本場主打</h2>'
+ +(event.featuredGame?'<h3>'+esc(event.featuredGame)+'</h3>':'')
+ +(event.teachingMinutes?'<p>含教學約 '+event.teachingMinutes+' 分鐘</p>':'')
+ +(event.teachingMode?'<p>'+esc(event.teachingMode)+'</p>':'')
+ +(event.backupGame?'<p class="muted">備選：'+esc(event.backupGame)+'</p>':'')+'</div></section>';
+}
+async function loadFeaturedCover(event){
+ const target=app.querySelector('.agenda-cover');
+ if(!target||!event.featuredGame)return;
+ try{
+ const games=await collection();
+ const game=games.find(game=>[game.chineseName,game.name].some(name=>name?.trim().toLowerCase()===event.featuredGame.trim().toLowerCase()));
+ if(!target.isConnected||!game)return;
+ const image=cover(game.image);
+ if(image){target.innerHTML='<img src="'+image+'" alt="" loading="lazy">';target.hidden=false}
+ if(game.minPlayers&&game.maxPlayers){
+ const players=document.createElement('p');players.textContent=game.minPlayers+'–'+game.maxPlayers+' 人';
+ target.nextElementSibling.append(players);
+ }
+ }catch{}
+}
+function status(e){
+ if(e.closed)return '已停辦';if(e.done)return '已結束';if(e.draft)return '草稿';
+ const past=Date.now()>=Date.parse(e.deadline+'+08:00');
+ if((e.reached||e.published)&&e.count<4)return '人數異動，主辦人處理中';
+ if(e.published)return '已成團，場地與分桌已公布';
+ if(e.confirmed)return '主辦人已確認成團';
+ if(e.count>=4)return '達成團門檻，等待主辦人確認';
+ if(past)return '報名已截止，等待主辦人決定';
+ return '還差 '+(4-e.count)+' 位成團';
+}
+
+function regularOverview(events){
+ if(!state.regular)return '';
+ const available=events.filter(event=>!event.closed&&!event.done&&Date.now()<Date.parse(event.deadline+'+08:00')).sort((a,b)=>a.start.localeCompare(b.start));
+ const cards=available.map(event=>{
+ const registration=event.me&&event.me.status!=='取消'?event.me.status:'';
+ const seats=registration||(event.count>=event.capacity||event.waiting?'開放候補':'剩 '+(event.capacity-event.count)+' 席');
+ return '<li><div><strong>'+esc(event.title)+'</strong><p>'+esc(event.start.replace('T',' '))+' · '+esc(event.area)+'</p>'
+ +'<p>'+esc(seats)+' · 截止 '+esc(event.deadline.replace('T',' '))+'</p></div>'
+ +button('quickEvent',registration?'查看報名':event.count>=event.capacity||event.waiting?'查看候補':'查看場次',event.id)+'</li>';
+ }).join('');
+
+ return '<section class="regular-overview"><h2>熟客快速報名</h2>'+(cards?'<ul>'+cards+'</ul>':'<p>目前沒有開放報名的場次。</p>')+'</section>';
+}
+function deletedInvites(members){
+ const archived=Object.entries(members).filter(([,member])=>member.deletedAt);
+ if(!archived.length)return '';
+ return fold('已刪除的邀請',archived.map(([id,member])=>'<div class="row">'+esc(member.name)+' '+button('restoreInvite','恢復並產生新連結',id)+'</div>').join(''));
+}
+function render(){const {admin,events,profile,members}=state;let visible=mine?events.filter(e=>e.me):events;let e=visible.find(x=>x.id===selected)||visible[0];selected=e?.id||'';
+let html=admin?button('refresh','更新名單')+button('logout','登出'):regularOverview(events);
+if(admin){html+='<section><h2>主辦人團務</h2>'+fold('邀請與會員管理',button('inviteRegular','從熟客名單發邀請')+'<div></div>'+form('invite',field('name','受邀玩家暱稱')+(e&&!e.draft?'<label><input type="checkbox" name="currentEvent" checked>直接開啟本場</label>':''),'產生個人邀請連結')+'<p id="invName"></p><button hidden id="copyInvite" type="button" data-cmd="copyInvite">複製個人邀請連結</button><textarea id="inviteOutput" aria-label="新邀請連結" hidden readonly></textarea>'+Object.entries(members).filter(([,member])=>!member.deletedAt).map(([id,m])=>'<div class="row">'+esc(m.name)+(state.regularPlayerIds?.includes(m.notionPlayerId)?' · 熟客':'')+' '+esc(m.contact)+' '+(m.active?button('reissue','重發連結',id):'')+button(m.active?'disable':'enable',m.active?'停用資格':'恢復資格',id)+button('deleteInvite','刪除邀請',id)+button('choosePlayer',m.notionPlayerId?'更換 Notion 玩家':'綁定 Notion 玩家',id)+'<div></div></div>').join(''))+deletedInvites(members)+fold('建立場次',edit())+fold('進階工具',button('backup','匯出團務備份 JSON')+fold('從備份還原場次','<label>選擇團務 JSON 備份<input id="restoreFile" type="file" accept=".json"></label><div id="restoreChoices"></div>'))+'</section>'}
+const account=admin?'':'<section>'+fold('帳戶與報名紀錄',fold('我的資料',form('profile',field('name','暱稱',profile.name)+field('contact','聯絡方式',profile.contact,'text',false)+field('experience','桌遊經驗',profile.experience,'text',false)+prefs(profile.pref)+field('note','備註',profile.note,'text',false),'儲存資料'))+button('mine',mine?'顯示所有場次':'我的報名紀錄')+button('refresh','更新狀態')+button('logout','登出'))+'</section>';
+if(!e){app.innerHTML=html+'<section>目前沒有符合的活動。</section>'+account;return}
+html+='<label>場次<select id="events">'+visible.map(x=>`<option value="${x.id}" ${x.id===e.id?'selected':''}>${esc(x.start.slice(0,10))} · ${esc(x.title)}（${status(x)}）</option>`).join('')+'</select></label>';
+const start=new Date(e.start+'+08:00'),clock=d=>d.toLocaleTimeString('zh-TW',{timeZone:'Asia/Taipei',hour:'2-digit',minute:'2-digit',hour12:false});
+if(!admin&&e.me){
+ const message=e.me.cancellationRequested?'取消申請待確認':e.me.status==='候補'?'候補第 '+e.me.waitPosition+' 位':e.me.status==='正取'?'報名成功・正取':'報名已取消';
+ const next=e.me.cancellationRequested?'主辦人確認後會更新報名狀態。':e.me.status==='候補'?'有空位時，主辦人會依順序聯絡。':e.me.status==='正取'&&!e.published?'場地與桌次公布後會顯示在這裡。':'';
+ html+='<section class="result-card" aria-label="報名結果"><h2>'+message+'</h2>'+(next?'<p>'+next+'</p>':'')+'</section>';
+}
+html+=`<article><span class="pill">${status(e)}</span><h1>${esc(e.title)}</h1><dl class="event-facts"><div><dt>聚會日期</dt><dd>${esc(e.start.slice(0,10))}</dd></div><div><dt>時段（台灣時間）</dt><dd>${clock(start)}–${e.end?clock(new Date(e.end+'+08:00')):'結束待定'}</dd></div><div><dt>區域</dt><dd>${esc(e.area||'待定')}</dd></div><div><dt>整場費用</dt><dd>NT$300</dd></div></dl><p class="muted">${[e.nearby,e.venueType].filter(Boolean).map(esc).join(' · ')}</p><p class="muted">彈性入場 ${clock(start)}–${clock(new Date(+start+1800000))}</p><div class="seatline" style="grid-template-columns:repeat(${e.capacity},minmax(0,1fr))" aria-hidden="true">${Array.from({length:e.capacity},(_,i)=>'<i class="'+(i<e.count?'taken ':'')+(i===3?'threshold':'')+'"></i>').join('')}</div><b>${e.count} / ${e.capacity} 席 · ${e.closed||e.done||Date.now()>=Date.parse(e.deadline+'+08:00')?'已停止報名':e.count===e.capacity?'額滿':'剩 '+(e.capacity-e.count)+' 席'} · 候補 ${e.waiting} 位</b><p>報名截止 ${e.deadline?esc(e.deadline.replace('T',' ')):'待定'}</p></article>`;
+html+=featured(e);
+html+='<section><details><summary>參加須知</summary><p>超過彈性入場時間可能錯過教學。餐飲另計，晚到或早退均收整場費用。前一天臨時取消須分攤場租，金額由主辦人確認。</p></details></section>';
+if(e.log.length)html+=fold('活動公告',e.log.map(x=>'<p>'+esc(x)+'</p>').join(''));
+if(!admin){
+const companions=e.me?.companions||[];
+const groupSize=companions.length+1;
+html+='<section id="my-registration" tabindex="-1"><h2>我的報名</h2>'+(e.me?'<p>'+esc(e.me.status)+'</p>':'');
+if(companions.length){
+ const canRequest=!e.closed&&!e.done&&!e.me.cancellationRequested&&e.me.status!=='取消';
+ html+='<div class="arrival"><h3>同行名單 · 共 '+groupSize+' 位</h3><p class="muted">整團正取代表每人都有席位，是否同桌依場次安排。</p>'
+ +companions.map(person=>{
+ const result=person.changeRequest?'待主辦人確認：'+(person.changeRequest.kind==='remove'?'減少一位':'更換為 '+esc(person.changeRequest.name)):person.changeResult==='reject'?'變更申請未通過':person.changeResult==='approve'?'已核准換人':'';
+ const controls=canRequest&&!person.changeRequest?fold('申請變更 · '+esc(person.name),
+ form('requestCompanionChange',hidden('row',person.id)+hidden('kind','remove'),'申請減少一位')
+ +form('requestCompanionChange',hidden('row',person.id)+hidden('kind','replace')+field('name','替補暱稱'),'申請換人')):'';
+ return '<div class="row"><strong>'+esc(person.name)+'</strong>'+(person.table?' · '+esc(person.table):'')+(result?'<p>'+result+'</p>':'')+controls+'</div>';
+ }).join('')+'</div>';
+}
+if(e.me?.removedCompanions?.length)html+='<p class="muted">已核准減員：'+e.me.removedCompanions.map(esc).join('、')+'</p>';
+if(e.me?.status==='正取'&&e.published&&!e.closed&&e.address){
+ html+='<div class="arrival"><h3>行前資訊</h3><p><strong>'+esc(e.address)+'</strong></p><p>'+esc(e.travel)+'</p>'+(e.arrivalContact?'<p>到場或遲到請找 '+esc(e.arrivalContact)+'</p>':'')+(e.teachingStart?'<p>教學開始 '+esc(e.teachingStart)+'</p>':'')+'<p>'+esc(e.me.table||'桌次待更新')+'</p><p>'+esc(e.gameNotes)+'</p><a class="map-link" href="https://www.google.com/maps/search/?api=1&query='+encodeURIComponent(e.address)+'" target="_blank" rel="noopener noreferrer">開啟地圖</a>'+button('calendar','加入行事曆')+'</div>';
+}
+if(!e.closed&&!e.done){if(e.me&&e.me.status!=='取消')html+=form('registration',prefs(e.me.pref)+wish(e.me.wish),'儲存報名修改')+(e.me.cancellationRequested?'':button('requestCancellation',groupSize>1?'申請取消整團':'申請取消'));else if(Date.now()<Date.parse(e.deadline+'+08:00'))html+=form('join',prefs(profile.pref)+wish()+fold('替同行者一起報名','<label>同行者暱稱（每行一位，最多五位）<textarea name="companionNames" rows="3"></textarea></label><p class="muted">你是主揪。空位不足時，整團一起候補；是否同桌依場次安排。</p>'),e.count>=e.capacity||e.waiting?'登記候補':'確認報名');else html+='報名已截止'}
+html+='</section>';
+}else{
+const active=e.rows.filter(r=>r.status==='正取'),wait=e.rows.filter(r=>r.status==='候補');
+html+='<section><h2>報名名單與收費</h2><p>到場 '+e.rows.filter(r=>r.attend==='到場').length+' 人 · 實收 NT$'+e.rows.reduce((s,r)=>s+(r.paid||0),0)+'</p>';
+const dues=r=>r.due??(r.status==='正取'?300:0),balance=r=>dues(r)-(r.paid||0);
+html+='<p>應收 NT$'+e.rows.reduce((n,r)=>n+dues(r),0)+' · 尚待收款 NT$'+e.rows.reduce((n,r)=>n+Math.max(0,balance(r)),0)+'</p>'+e.rows.filter(r=>balance(r)!==0).map(r=>'<p>'+esc(r.name)+' · '+(r.status==='取消'?'取消分攤':'參加費')+' · '+(balance(r)>0?'待收':'溢收')+' NT$'+Math.abs(balance(r))+'</p>').join('');
+
+for(const r of e.rows){html+=fold(esc(r.name)+' · '+r.status+' · '+esc(r.pref)+(r.groupId?(r.groupLeader?' · 主揪':' · 同行'):'')+(r.cancellationRequestedAt?' · 取消申請待確認':''),(r.changeRequest?'<p>同行變更待確認：'+(r.changeRequest.kind==='remove'?'減少一位':'更換為 '+esc(r.changeRequest.name))+'</p>'+button('approveChange','核准變更',r.id)+button('rejectChange','駁回變更',r.id):'')+'<p>許願遊戲：'+esc(r.wish||'未填')+'</p><p>'+esc(r.at)+' '+esc(members[r.uid]?.contact)+'</p>'+(!e.done&&!e.closed&&r.status!=='取消'&&(!r.groupId||r.groupLeader)?button('cancel',r.groupId?'取消整團':r.cancellationRequestedAt?'確認取消申請':'取消這筆報名',r.id):'')+(r===wait[0]&&!r.cancellationRequestedAt&&active.length+(r.groupId?wait.filter(member=>member.groupId===r.groupId).length:1)<=e.capacity&&!e.closed&&!e.done?button('promote',r.groupId?'已聯絡主揪，整團轉正取':'已用 LINE 確認，轉正取',r.id):'')+form('account',hidden('row',r.id)+'<label>出席<select name="attend">'+['待點名','到場','缺席'].map(x=>'<option '+(r.attend===x?'selected':'')+'>'+x+'</option>').join('')+'</select></label>'+field('due','應收金額',r.due??(r.status==='正取'?300:0),'number')+field('paid','實收金額',r.paid,'number'),'儲存出席與收款'))}
+html+=button('csv','下載名單 CSV')+'</section><section><h2>活動管理</h2>'+(!e.draft&&!e.confirmed&&!e.published&&!e.closed&&!e.done&&active.length>=4?button('confirmEvent','確認成團'):'')+fold('代登玩家',form('guest',field('name','暱稱')+prefs()+wish(),'登記'))+fold('修改本場',edit(e))+fold('複製開新場',edit(e,true))+fold('集合地址與分桌',form('publish',field('address','地址',e.address)+field('travel','交通及注意事項',e.travel,'text',false)+field('arrivalContact','到場與遲到聯絡方式',e.arrivalContact,'text',false)+field('teachingStart','教學開始時間',e.teachingStart,'time',false)+field('gameNotes','遊戲簡介、難度、預估時間與教學安排',e.gameNotes,'text',false)+active.map(r=>field('table_'+r.id,esc(r.name)+' 的桌次、遊戲與教學者',r.table)).join(''),'一併公布'))+fold('LINE 通知',`<textarea id="notice">${esc([e.title,e.start.replace('T',' '),e.area,status(e),e.count+'／'+e.capacity+' 人，整場 NT$300',location.origin].join('\n'))}</textarea>`+button('copy','複製文字'))+(!e.closed&&!e.done?button('stop','停辦本場')+button('finish','結束本場'):'')+'</section>'}
+app.innerHTML=html+account;void loadFeaturedCover(e)}
+function download(name,data,type){const url=URL.createObjectURL(new Blob([data],{type}));const a=document.createElement('a');a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000)}
+let restoreEvents=[];
+app.onchange=async e=>{
+ if(e.target.id==='restoreFile'){
+ const box=document.querySelector('#restoreChoices');restoreEvents=[];box.textContent='';
+ try{const file=e.target.files[0];if(!file)return;if(file.size>4000000)throw Error();
+ const json=JSON.parse(await file.text());if(json.version!==1||!Array.isArray(json.events))throw Error();restoreEvents=json.events;
+ box.innerHTML='<p>選擇要還原的場次。名單與款項會存為獨立草稿。</p>'+restoreEvents.map((x,i)=>button('restore',x.title+' · '+x.start,String(i))).join('');
+ }catch{box.textContent='請選擇有效的團務備份 JSON'}return}
+if(e.target.id==='events'){selected=e.target.value;if(!state.admin)rememberEvent();render()}};
+app.addEventListener('input',event=>{
+ const input=event.target;
+ if(input.name!=='companionNames')return;
+ const current=state?.events.find(item=>item.id===selected);
+ const size=1+input.value.split(/\r?\n/).filter(name=>name.trim()).length;
+ if(current)input.form.querySelector('[type=submit]').textContent=size===1
+ ?(current.count>=current.capacity||current.waiting?'登記候補':'確認報名')
+ :(current.count+size>current.capacity||current.waiting?'整團登記候補':'確認團體報名');
+});
+app.onsubmit=async ev=>{ev.preventDefault();const f=ev.target;if(f.dataset.busy)return;f.dataset.busy='true';const submit=f.querySelector('button[type=submit]');submit.disabled=true;const d=new FormData(f),data=Object.fromEntries(d);data.pref=d.getAll('pref');if(f.dataset.action==='invite'&&data.notionPlayerId)data.name=f.querySelector('select').selectedOptions[0]?.textContent||'';if(f.dataset.action==='join'){data.companions=String(data.companionNames||'').split(/\r?\n/).map(name=>name.trim()).filter(Boolean);delete data.companionNames}data.tables=Object.fromEntries([...d].filter(([k])=>k.startsWith('table_')).map(([k,v])=>[k.slice(6),v]));try{msg.textContent='儲存中…';await request(f.dataset.action,data);if(!state?.invite)msg.textContent='已更新'}catch(error){msg.textContent=error.message}finally{delete f.dataset.busy;submit.disabled=false}};
+app.onclick=async ev=>{let b=ev.target.closest('[data-cmd]');if(!b)return;let cmd=b.dataset.cmd;try{
+ if(cmd==='browseCollection'){
+ const picker=b.nextElementSibling;
+ picker.hidden=!picker.hidden;
+ b.setAttribute('aria-expanded',String(!picker.hidden));
+ if(picker.hidden)return;
+ if(picker.games){picker.querySelector('input').focus();return}
+ picker.textContent='載入收藏中…';
+ try{picker.games=await collection()}catch{picker.textContent='收藏暫時無法載入，仍可直接輸入名稱。';return}
+ picker.innerHTML='<label>搜尋收藏<input type="search" placeholder="中文或英文名稱"></label><p class="muted" role="status"></p><div class="game-results"></div>';
+ picker.querySelector('input').addEventListener('input',()=>showGames(picker));
+ picker.querySelector('input').addEventListener('keydown',event=>{if(event.key==='Enter')event.preventDefault()});
+ showGames(picker);if(picker.isConnected&&!picker.hidden)picker.querySelector('input').focus();return
+ }
+ if(cmd==='pickGame'){
+ const wish=b.closest('.wish'), input=wish.querySelector('[data-game-input]');
+ input.value=b.dataset.id;
+ b.closest('.collection-picker').hidden=true;
+ wish.querySelector('[data-cmd="browseCollection"]').setAttribute('aria-expanded','false');
+ input.focus();return
+ }
+ if(cmd==='admin'){adminMode=true;if(!adminPassword()){login();msg.textContent='請先返回桌遊清單，以原管理員密碼登入。';return}await request();msg.textContent='已使用桌遊清單管理員登入';return}
+ if(cmd==='calendar'){
+ const event=state.events.find(e=>e.id===selected);
+ if(event?.me?.status!=='正取'||!event.published||event.closed||!event.address)return;
+ const escapeICS=value=>String(value??'').replaceAll('\\','\\\\').replace(/\r?\n/g,'\\n').replace(/[;,]/g,char=>'\\'+char);
+ const timestamp=value=>new Date(value).toISOString().replace(/[-:]/g,'').replace(/\.\d{3}/,'');
+ const body=['BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//Board Game Collection//Meetings//ZH','BEGIN:VEVENT','UID:'+event.id+'@boardgame-olive.vercel.app','DTSTAMP:'+timestamp(Date.now()),'DTSTART:'+timestamp(event.start+'+08:00'),'DTEND:'+timestamp(event.end+'+08:00'),'SUMMARY:'+escapeICS(event.title),'LOCATION:'+escapeICS(event.address),'DESCRIPTION:'+escapeICS([event.travel,event.me.table,event.gameNotes].filter(Boolean).join('\n')),'END:VEVENT','END:VCALENDAR',''].join('\r\n');
+ download('桌遊聚會.ics',body,'text/calendar;charset=utf-8');return
+ }
+ if(cmd==='approveChange'||cmd==='rejectChange'){await request('resolveCompanionChange',{row:b.dataset.id,decision:cmd==='approveChange'?'approve':'reject'});msg.textContent='已更新同行申請';return}
+ if(cmd==='restore'){if(confirm('確定還原為新的場次草稿？'))await request('restore',{source:restoreEvents[Number(b.dataset.id)]});return}
+ if(cmd==='quickEvent'){
+ selected=b.dataset.id;mine=false;rememberEvent();render();
+ document.querySelector('#my-registration')?.focus();return
+ }
+ if(cmd==='inviteRegular'){
+ const target=b.nextElementSibling;
+ const response=await fetch('/api/players',{cache:'no-store'});
+ if(!response.ok)throw Error('無法讀取 Notion 玩家名單');
+ const regularIds=new Set(state.regularPlayerIds||[]);
+ const boundIds=new Set(Object.values(state.members).map(member=>member.notionPlayerId));
+ const players=(await response.json()).filter(player=>regularIds.has(player.id.toLowerCase())&&!boundIds.has(player.id.toLowerCase()));
+ if(!players.length){target.textContent='沒有尚未綁定邀請的熟客。';return}
+ const current=state.events.find(event=>event.id===selected&&!event.draft);
+ target.innerHTML=form('invite','<label>熟客<select required name="notionPlayerId"><option value="">選擇玩家</option>'+players.map(player=>'<option value="'+esc(player.id)+'">'+esc(player.name)+'</option>').join('')+'</select></label>'+(current?'<label><input type="checkbox" name="currentEvent" checked>直接開啟本場</label>':''),'產生並綁定熟客邀請');
+ target.querySelector('select').focus();return
+ }
+ if(cmd==='choosePlayer'){
+ const target=b.nextElementSibling;
+ const response=await fetch('/api/players',{cache:'no-store'});
+ if(!response.ok)throw Error('無法讀取 Notion 玩家名單');
+ const players=await response.json();
+ const current=state.members[b.dataset.id]?.notionPlayerId;
+ target.innerHTML=form('linkPlayer',hidden('uid',b.dataset.id)+'<label>Notion 玩家<select required name="notionPlayerId"><option value="">選擇玩家</option>'+players.map(p=>'<option value="'+esc(p.id)+'" '+(p.id===current?'selected':'')+'>'+esc(p.name)+'</option>').join('')+'</select></label>','儲存玩家綁定');
+ target.querySelector('select').focus();return
+ }
+ if(cmd==='copyInvite'){const box=document.querySelector('#inviteOutput');try{await navigator.clipboard.writeText(box.value);msg.textContent='邀請連結已複製'}catch{box.select();msg.textContent='請手動複製已選取的連結'}return}
+ if(cmd==='deleteInvite'){
+ if(confirm('刪除後，這個邀請連結和現有登入會失效，既有報名會保留。確定刪除？')){
+ await request('deleteInvite',{uid:b.dataset.id});msg.textContent='邀請已刪除';
+ }
+ return;
+ }
+ if(cmd==='restoreInvite'){
+ if(confirm('確定恢復此邀請並產生新連結？舊連結仍無法使用。'))await request('restoreInvite',{uid:b.dataset.id});
+ return;
+ }
+ if(cmd==='reissue'){if(confirm('重發後，舊連結將失效。報名紀錄會保留。'))await request('reissue',{uid:b.dataset.id});return}
+ if(cmd==='mine'){mine=!mine;render();return}if(cmd==='backup'){const res=await fetch('/api/meet',{method:'POST',headers:{'Content-Type':'application/json',...authHeaders()},body:JSON.stringify({action:'backup'})});if(!res.ok)throw Error('備份失敗');download('團務備份.json',JSON.stringify(await res.json(),null,2),'application/json');return}if(cmd==='csv'){let e=state.events.find(x=>x.id===selected);const quote=s=>'"'+String(s??'').replace(/^[=+@-]/,"'$&").replaceAll('"','""')+'"';download('場次名單.csv','\uFEFF'+[['暱稱','報名','許願遊戲','桌次','出席','應收','實收'],...e.rows.map(r=>[r.name,r.status,r.wish,r.table,r.attend,r.due??(r.status==='正取'?300:0),r.paid])].map(row=>row.map(quote).join(',')).join('\r\n'),'text/csv');return}if(cmd==='copy'){await navigator.clipboard.writeText(document.querySelector('#notice').value);msg.textContent='已複製';return}if(['requestCancellation','cancel','stop','finish','disable'].includes(cmd)&&!confirm('確定'+b.textContent+'？'))return;await request(cmd==='refresh'?null:['enable','disable'].includes(cmd)?'member':cmd,{row:b.dataset.id,uid:b.dataset.id,active:cmd==='enable'});msg.textContent='已更新'}catch(error){msg.textContent=error.message}};
+document.addEventListener('visibilitychange',()=>{if(!document.hidden&&state&&!app.querySelector('details[open]')&&!app.querySelector('input:focus'))request().catch(e=>msg.textContent=e.message)});
+function rememberEvent(){
+ const url=new URL(location.href);url.hash='';url.searchParams.delete('manage');
+ if(selected)url.searchParams.set('event',selected);else url.searchParams.delete('event');
+ history.replaceState(null,'',url);
+}
+function enterFromLocation(){
+ const params=new URLSearchParams(location.hash.slice(1));
+ const invite=params.get('invite');
+ if(invite){selected=params.get('event')||'';mine=false}else{selected=new URLSearchParams(location.search).get('event')||selected}
+ if(!invite&&new URLSearchParams(location.search).has('manage')&&adminPassword())adminMode=true;
+ if(invite){adminMode=false;rememberEvent()}
+ return request(invite?'login':null,invite?{key:invite}:{}).catch(e=>{login();if(invite||e.message!=='請輸入個人邀請碼')msg.textContent=e.message});
+}
+window.addEventListener('hashchange',()=>{if(new URLSearchParams(location.hash.slice(1)).has('invite'))void enterFromLocation()});
+void enterFromLocation();
+</script></html>

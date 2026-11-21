@@ -239,6 +239,15 @@ export async function getPlayers(): Promise<Player[]> {
     .sort((a, b) => a.name.localeCompare(b.name));
 }
 
+export async function getMeetingRegularPlayerIds(): Promise<string[]> {
+  const databaseId = process.env.NOTION_PLAYERS_DB_ID;
+  if (!databaseId) return [];
+  const pages = await queryAllPagesCached(databaseId, {
+    filter: { property: "熟客", checkbox: { equals: true } },
+  }, "meeting-regular-players");
+  return pages.map(page => page.id.toLowerCase());
+}
+
 export async function createPlayer(name: string): Promise<Player> {
   const databaseId = process.env.NOTION_PLAYERS_DB_ID;
   if (!databaseId) {
@@ -279,6 +288,7 @@ export async function createPlaySession(data: {
   date: string;
   location: string;
   notes?: string;
+  gatheringPageId?: string;
 }): Promise<{ id: string }> {
   const databaseId = process.env.NOTION_PLAYS_DB_ID;
   if (!databaseId) throw new Error("NOTION_PLAYS_DB_ID is not set");
@@ -286,6 +296,15 @@ export async function createPlaySession(data: {
   const notion = getNotionClient();
 
   const autoPlayId = `play_${data.date}_${data.gameId.slice(0, 8)}`;
+  if (data.gatheringPageId) {
+    const gatheringsDb = process.env.NOTION_GATHERINGS_DB_ID;
+    if (!gatheringsDb) throw new Error("NOTION_GATHERINGS_DB_ID is not set");
+    const gathering = await notion.pages.retrieve({ page_id: data.gatheringPageId });
+    if (!("parent" in gathering) || gathering.parent.type !== "database_id" ||
+        gathering.parent.database_id.replaceAll("-", "") !== gatheringsDb.replaceAll("-", "")) {
+      throw new Error("Invalid gathering page");
+    }
+  }
   const props: Record<string, unknown> = {
     [PLAYS_PLAY_ID_PROP]: {
       title: [{ text: { content: autoPlayId } }],
@@ -293,6 +312,9 @@ export async function createPlaySession(data: {
     [PLAYS_DATE_PROP]: { date: { start: data.date } },
     [PLAYS_GAME_PROP]: { relation: [{ id: data.gameId }] },
   } as Record<string, unknown>;
+  if (data.gatheringPageId) {
+    props.Gathering = { relation: [{ id: data.gatheringPageId }] };
+  }
 
   if (data.location) {
     props[PLAYS_LOCATION_PROP] = { select: { name: data.location } };
