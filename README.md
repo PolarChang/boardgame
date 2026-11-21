@@ -1,5 +1,7 @@
 # 🎲 Board Game Collection — Euro-Classic Ledger
 
+正式建置使用 `npm run build`（`next build --webpack`）。這是目前 Next.js 16.2.7 的生產建置相容措施：Turbopack 曾在雲端處理 Noto Sans TC 時無法解析內部字型模組。保留 `next/font/google` 的真實字型下載、打包與錯誤判定；開發指令仍使用 Turbopack。參考 [Next.js 官方建置工具切換說明](https://nextjs.org/docs/app/guides/upgrading/version-16#opting-out-of-turbopack)。建置仍需存取 Google Fonts；本措施不提供離線建置保證。將來恢復 Turbopack 前，須在乾淨環境重跑建置及正式版瀏覽器驗證。
+
 CI 驗證導入：`npm test`、`npm run lint`、`npm run build`、`npm run verify:properties`、`npm run verify:differential`。Observe workflow 從不可變 base 讀規則，不執行候選程式；完整範圍與尚未納入 main 的瀏覽器／後端流程見 [CI 驗證說明](scripts/verification/README.md)。本變更不啟用強制合併門檻或部署。
 
 > **給 AI 助手的快速導覽**：這是一個以 **Next.js App Router** 打造的桌遊收藏展示與戰績追蹤 Web App。資料來源有三：(1) **Notion** 作為 CMS（遊戲庫、遊玩記錄、玩家、分數），(2) **BoardGameGeek (BGG) API** 透過 GitHub Actions 每日同步收藏，(3) **BoardGameNews 雲端 JSON** 提供精選推薦。另有外部 **FastAPI 規則查詢引擎**（`/rules` 頁面）。UI 採用 Euro-Classic 歐式古典設計風格（羊皮紙底色 + 黃銅飾邊）。
