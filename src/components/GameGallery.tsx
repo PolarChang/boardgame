@@ -12,6 +12,7 @@ import SearchBar from "./SearchBar";
 import ViewToggle from "./ViewToggle";
 import type { ViewMode } from "./ViewToggle";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
+import { verifyCollectionAdmin } from "@/lib/collection-admin";
 
 interface GameGalleryProps {
   initialGames: NotionGame[];
@@ -56,6 +57,8 @@ export default function GameGallery({ initialGames }: GameGalleryProps) {
   const [adminPassword, setAdminPassword] = useState("");
   const isAdmin = adminPassword !== "";
   const restoredFromStorage = useRef(false);
+  const adminAuthRequest = useRef(0);
+  const [adminChecking, setAdminChecking] = useState(false);
 
   // Search & View Mode
   const [searchTerm, setSearchTerm] = useState("");
@@ -69,7 +72,12 @@ export default function GameGallery({ initialGames }: GameGalleryProps) {
       if (raw) {
         const data = JSON.parse(raw);
         if (data.expiry > Date.now() && data.password) {
-          setAdminPassword(data.password);
+          const version = ++adminAuthRequest.current;
+          void verifyCollectionAdmin(data.password).then(valid => {
+            if (version !== adminAuthRequest.current) return;
+            if (valid) setAdminPassword(data.password);
+            else localStorage.removeItem(AUTH_TOKEN_KEY);
+          }).catch(() => { /* Keep the saved state for a later service retry. */ });
         } else {
           localStorage.removeItem(AUTH_TOKEN_KEY);
         }
@@ -280,9 +288,20 @@ export default function GameGallery({ initialGames }: GameGalleryProps) {
             <button
               type="button"
               aria-label={isAdmin ? "管理員已登入" : "管理員登入"}
-              onClick={() => {
+              disabled={adminChecking}
+              onClick={async () => {
                 const pwd = window.prompt("請輸入管理員密碼：");
                 if (pwd) {
+                  const version = ++adminAuthRequest.current;
+                  setAdminChecking(true);
+                  try {
+                    const valid = await verifyCollectionAdmin(pwd);
+                    if (version !== adminAuthRequest.current) return;
+                    if (!valid) { window.alert("管理密碼不正確，請使用目前正式環境的管理密碼"); return; }
+                  } catch {
+                    window.alert("無法驗證管理登入，請稍後重試");
+                    return;
+                  } finally { setAdminChecking(false); }
                   setAdminPassword(pwd);
                   const token = {
                     password: pwd,
@@ -300,6 +319,7 @@ export default function GameGallery({ initialGames }: GameGalleryProps) {
                 <button
                   type="button"
                   onClick={() => {
+                    adminAuthRequest.current++;
                     setAdminPassword("");
                     localStorage.removeItem(AUTH_TOKEN_KEY);
                   }}
@@ -344,6 +364,8 @@ export default function GameGallery({ initialGames }: GameGalleryProps) {
         <div className="collection-shortcut-actions">
           <button type="button" onClick={pickOne} disabled={filteredGames.length === 0} className="collection-primary"><Shuffle size={18} aria-hidden="true" />幫我選一款</button>
           <Link href="/knowledge"><BookOpen size={18} aria-hidden="true" />前往規則庫</Link>
+          <Link href="/meet/index.html">策略桌遊聚會</Link>
+          {isAdmin && <Link href="/meet/index.html?manage=1">團務後台</Link>}
         </div>
       </section>
 

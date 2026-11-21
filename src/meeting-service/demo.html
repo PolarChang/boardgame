@@ -1,0 +1,58 @@
+<!doctype html><html lang="zh-Hant"><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>我先算一下｜策略桌遊聚會</title><style>
+*{box-sizing:border-box}body{margin:0;background:#f5f3ee;color:#203830;font:16px/1.65 "DM Sans",system-ui,sans-serif}header,main{max-width:800px;margin:auto;padding:20px}header{display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #ccc}header b{font-size:21px}button,select,input,textarea{font:inherit;color:inherit}button{cursor:pointer;background:#174d41;color:white;border:0;border-radius:8px;padding:9px 16px;margin:4px 3px}button.alt{background:#e1e8df;color:#174d41}article,section{padding:24px;border-radius:18px;margin:16px 0;background:white}article{background:#174d41;color:white;position:relative;overflow:hidden}article:after{content:"⚄";position:absolute;right:16px;top:0;color:#bdd6aa;font:100px/1.3 Georgia;transform:rotate(12deg);opacity:.25;pointer-events:none}h1{font-size:clamp(27px,5vw,40px);line-height:1.2;margin:12px 0}h2{font-size:21px;margin:0 0 10px}p{margin:8px 0}small{color:#52675e}label{display:block;margin:9px 0}input:not([type=checkbox]),select,textarea{max-width:100%;width:100%;padding:9px;background:white;border:1px solid #a6b6ab;border-radius:6px}fieldset{border:0;padding:0;margin:12px 0}fieldset label{display:inline-block;margin-right:18px}.row{border-top:1px solid #dce3da;padding:12px 0}.muted{font-size:14px}.pill{display:inline-block;background:#def0be;color:#244633;border-radius:20px;padding:2px 12px}summary{cursor:pointer;font-weight:bold}button:focus-visible{outline:3px solid orange}details{padding:10px 0}details+details{border-top:1px solid #dce3da}textarea{resize:vertical}
+body{background:#f5f4ef;color:#252d29;font-variant-numeric:tabular-nums}header,main{max-width:920px}header{padding-block:12px}header b{font:600 24px Georgia,serif;letter-spacing:.04em}header button.alt{background:transparent;border:1px solid #a3afa6}article,section{background:#fffefa;color:#252d29;border:1px solid #d8dcd4;border-radius:12px;padding:24px}article{border-top:4px solid #235746}article:after{content:none}.pill{background:transparent;color:#275743;padding:0;font-weight:600}.sheet{display:flex;align-items:start;justify-content:space-between;gap:16px}h1{font-family:Georgia,"Noto Serif TC",serif;font-weight:600}dl{display:flex;gap:24px;margin:12px 0}dt,article small,.roster small{font-size:14px;color:#526157}dd{margin:0;font-weight:600;white-space:nowrap}.seatline{display:grid;grid-template-columns:repeat(6,1fr);gap:8px;margin:24px 0 12px}.seatline i{height:16px;border:1px solid #adb8ab;border-radius:4px;background:#efefe9}.seatline .taken{background:#285840;border-color:#285840}.seatline .threshold{outline:2px solid #466b55;outline-offset:2px}.seattext{margin-bottom:0}.roster{display:grid;grid-template-columns:minmax(76px,1fr) auto auto;align-items:center;gap:8px}.roster small{display:block}.roster label{display:flex;align-items:center;min-height:44px;margin:0}button,summary{min-height:44px}summary{padding:8px 0}button:hover{filter:brightness(.94)}button:focus-visible,summary:focus-visible,input:focus-visible{outline:2px solid #267453;outline-offset:2px}h2{font-weight:600}@media(max-width:600px){header,main{padding:12px 16px}.sheet{display:block}dl{margin:12px 0 0}.seatline{margin-top:16px}article,section{padding:16px}.roster{font-size:15px}}
+</style>
+<header><b>我先算一下</b><button class="alt" id="mode"></button></header><main><small>單機試用 · 範例資料儲存在此瀏覽器</small><div id="app"></div><p role="status" id="msg"></p></main>
+<script>
+const app=document.querySelector('#app'), mode=document.querySelector('#mode'), msg=document.querySelector('#msg');
+const key='table-night-v1';let host=false, idx=0;
+function eventData(title,time,area){return {title,time,area,players:[],address:'',published:false,closed:false,reached:false}}
+let events=JSON.parse(localStorage.getItem(key)||'null');
+if(!events){let e=eventData('週末策略桌遊聚','2026-12-05T13:00','台北車站周邊');e.players=['小安','阿哲','米粒'].map((name,i)=>({name,pref:['輕、中','中','中、重'][i],table:'',status:'正取'}));events=[e]}
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+function save(message){localStorage.setItem(key,JSON.stringify(events));render();msg.textContent=message}
+mode.onclick=()=>{host=!host;render()};
+function render(){msg.textContent='';let e=events[idx],ps=e.players,yes=ps.filter(p=>p.status==='正取'),wait=ps.filter(p=>p.status==='候補'),me=ps.find(p=>p.mine),n=yes.length;
+mode.textContent=host?'切換玩家':'主辦人試用';
+app.innerHTML='<label>選擇活動<select id="choose">'+events.map((v,i)=>'<option value="'+i+'" '+(idx===i?'selected':'')+'>'+esc(v.title)+'</option>').join('')+'</select></label>'+
+`<article><div class="sheet"><div><span class="pill">${e.closed?'已停辦':e.published?'成團資訊已公布':e.reached?'人數已達標，場地確認中':'開放報名'}</span><h1>${esc(e.title)}</h1><p>${esc(e.time.slice(0,10))}　${esc(e.area)}</p></div><dl><div><dt>彈性入場</dt><dd>${esc(e.time.slice(11,16))}–${new Date(new Date(e.time+'Z').getTime()+1800000).toISOString().slice(11,16)}</dd></div><div><dt>整場費用</dt><dd>NT$300</dd></div></dl></div><div class="seatline" aria-hidden="true">${Array.from({length:6},(_,i)=>'<i class="'+(i<n?'taken ':'')+(i===3?'threshold':'')+'"></i>').join('')}</div><p class="seattext"><strong>${e.closed?'已停止招募':e.reached?'已達成團門檻':'還差 '+(4-n)+' 位成團'}</strong>　${e.closed?'':n===6?'正取額滿':'剩 '+(6-n)+' 席'}　候補 ${wait.length} 位</p><small>4 人成團 · 6 席上限 · 主辦人另計</small></article>`;
+
+if(!host){app.innerHTML+='<section><h2>報名前須知</h2><p>4 位玩家成團，主辦人另計。每場提供教學，由主辦人安排遊戲與桌次。</p><p>開始後 30 分鐘內可彈性入場，較晚抵達可能錯過教學。</p><p><b>NT$300／整場</b> · 現場收費，餐飲另計。活動前一天臨時取消須分攤場租，金額由主辦人確認。</p></section>';
+if(!e.closed&&me&&me.status==='正取'&&e.published)app.innerHTML+='<section><h2>我的集合資訊</h2>'+esc(e.address)+'<p>'+esc(me.table||'桌次待安排')+'</p></section>';
+if(!e.closed)app.innerHTML+=me?'<section><h2>我的報名 · '+me.status+'</h2>'+esc(me.name)+' · '+esc(me.pref)+'策略<form id="registration"><fieldset><legend>策略程度</legend>'+['輕','中','重'].map(v=>'<label><input type="checkbox" name="pref" value="'+v+'" '+(me.pref.includes(v)?'checked':'')+'> '+v+'</label>').join('')+'</fieldset><a href="https://boardgame-olive.vercel.app/" target="_blank" rel="noopener noreferrer">查看我們的桌遊清單（另開分頁）</a><label>許願遊戲（可不填）<input name="wish" maxlength="300" value="'+esc(me.wish)+'"></label><button>儲存報名修改</button></form><p>如需取消，請聯絡主辦人。</p></section>':'<section><form id="join"><h2>'+((n>=6||wait.length)?'登記候補':'我要報名')+'</h2><label>暱稱<input name="nick" required maxlength="30"></label><fieldset><legend>偏好的策略程度（可複選）</legend>'+['輕','中','重'].map(v=>'<label><input type="checkbox" name="pref" value="'+v+'"> '+v+'</label>').join('')+'</fieldset><a href="https://boardgame-olive.vercel.app/" target="_blank" rel="noopener noreferrer">查看我們的桌遊清單（另開分頁）</a><label>許願遊戲（可不填）<input name="wish" maxlength="300"></label><button>確認送出</button></form></section>';
+}else{app.innerHTML+='<section><h2>名單與現場收費</h2><p>實收 NT$'+yes.filter(p=>p.paid).length*300+'</p>'+ps.map((p,i)=>'<div class="row roster"><span><b>'+esc(p.name)+'</b><small>'+esc(p.pref)+'策略 · '+p.status+(p.wish?' · 許願 '+esc(p.wish):'')+'</small></span>'+(p.status==='候補'?(n<6&&p===wait[0]&&!e.closed?' <button data-promote="'+i+'">已用 LINE 確認，遞補</button>':''):'<label><input type="checkbox" data-id="'+i+'" data-field="attend" '+(p.attend?'checked':'')+'> 已到場</label><label><input type="checkbox" data-id="'+i+'" data-field="paid" '+(p.paid?'checked':'')+'> 已收款</label>')+'</div>').join('')+'</section>';
+if(!e.closed)app.innerHTML+='<section><form id="publish"><h2>公布場地與分桌</h2><label>集合地址<input name="address" required value="'+esc(e.address)+'"></label>'+yes.map((p,i)=>'<label>'+esc(p.name)+' 的桌次與遊戲<input name="t'+i+'" required value="'+esc(p.table)+'"></label>').join('')+'<button>確認並公布</button></form></section><button id="stop" class="alt">停辦本場</button>';
+app.innerHTML+='<section><details><summary>建立下一場活動</summary><form id="create"><label>活動名稱<input name="title" required></label><label>開始時間<input name="time" type="datetime-local" required></label><label>活動區域<input name="area" required></label><button>建立並開放報名</button></form></details></section>'}
+if(host && !e.closed){
+  const extra = document.createElement('section');
+  extra.innerHTML = `<h2>團務工具</h2>
+  <details><summary>代登玩家與管理候補</summary>
+    <form id="guest"><label>玩家暱稱<input name="nick" required maxlength="30"></label>
+    <fieldset><legend>策略程度</legend>${['輕','中','重'].map(v=>'<label><input type="checkbox" name="pref" value="'+v+'"> '+v+'</label>').join('')}</fieldset>
+    <button>代為登記</button></form>
+    ${ps.map((p,i)=>'<div class="row">'+esc(p.name)+' · '+p.status+' <button class="alt" type="button" data-remove="'+i+'">移出名單</button></div>').join('')}
+  </details>
+  <details><summary>修改活動時間與地區</summary><form id="edit">
+  <label>活動名稱<input required name="title" value="${esc(e.title)}"></label>
+  <label>開始時間<input required name="time" type="datetime-local" value="${esc(e.time)}"></label>
+  <label>活動區域<input required name="area" value="${esc(e.area)}"></label><button>儲存修改</button></form></details>
+  <details><summary>準備 LINE 通知</summary><label>通知文字<textarea id="notice" rows="5"></textarea></label><button type="button" id="copy">複製通知</button></details>
+  <details><summary>沿用設定開下一場</summary><form id="repeat"><label>新場次時間<input required name="time" type="datetime-local"></label><button>複製活動並開放報名</button></form></details>`;
+  app.querySelector('article').after(extra);
+  extra.querySelector('#notice').value = [e.title,e.time.replace('T',' ')+' · '+e.area,'已報名 '+n+'／6 人，候補 '+wait.length+' 人。',e.published?'場地與分桌已確認，請向主辦人確認集合資訊。':'場地與分桌將由主辦人一併公告。','每人 300 元，含教學，餐飲另計。'].join('\n');
+}
+document.querySelector('#choose').onchange=ev=>{idx=Number(ev.target.value);render()};
+app.onsubmit=ev=>{ev.preventDefault();let f=ev.target,d=new FormData(f);
+if(f.id==='registration'){let pref=d.getAll('pref');if(!pref.length){msg.textContent='請選擇策略程度';return}me.pref=pref.join('、');me.wish=d.get('wish');save('已更新報名');return}
+if(f.id==='repeat'){events.unshift(eventData(e.title,d.get('time'),e.area));idx=0;save('新場次已建立，名單已清空');return}
+if(f.id==='edit'){e.title=d.get('title');e.time=d.get('time');e.area=d.get('area');save('場次資料已更新');return}
+if(f.id==='join'||f.id==='guest'){let prefs=d.getAll('pref');if(!prefs.length){msg.textContent='請選擇至少一種策略程度';return}let status=n>=6||wait.length?'候補':'正取';ps.push({mine:f.id==='join',name:d.get('nick'),wish:d.get('wish')||'',pref:prefs.join('、'),status});if(status==='正取'&&n+1>=4)e.reached=true;save('已登記為'+status)}
+if(f.id==='create'){events.unshift(eventData(d.get('title'),d.get('time'),d.get('area')));idx=0;save('已開放報名')}
+if(f.id==='publish'){e.address=d.get('address');yes.forEach((p,i)=>p.table=d.get('t'+i));e.published=true;save('已向正取玩家公布')}};
+app.onclick=ev=>{let t=ev.target;
+if(t.id==='copy'){const box=document.querySelector('#notice');box.select();navigator.clipboard?.writeText(box.value).then(()=>msg.textContent='通知已複製，可貼到 LINE').catch(()=>msg.textContent='已選取文字，可手動複製');return}
+if(t.dataset.remove!==undefined){let i=Number(t.dataset.remove);if(confirm('確定將 '+ps[i].name+' 移出本場名單？')){ps.splice(i,1);save('已更新名單')}return}
+if(t.id==='cancel'&&confirm('確定取消本場報名？')){ps.splice(ps.indexOf(me),1);save('已取消報名')}if(t.id==='stop'&&confirm('確定停辦本場？')){e.closed=true;save('本場已停辦')}if(t.dataset.field){ps[t.dataset.id][t.dataset.field]=t.checked;save('已儲存')}if(t.dataset.promote!==undefined){ps[t.dataset.promote].status='正取';if(n+1>=4)e.reached=true;save('已遞補')}}}
+render();
+</script><!-- Design pass informed by unslop by Damir Sokolovsky, CC BY 4.0. https://github.com/heydamir/unslop -->
+</html>

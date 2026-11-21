@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { timingSafeEqual } from 'node:crypto';
 import { PlayRecordSchema } from '@/lib/play-schema';
 import * as notionService from '@/lib/notion';
 
@@ -21,7 +22,15 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const { gameId, date, location, notes, playerScores } = validatedData.data;
+    const { gameId, date, location, notes, playerScores, gatheringPageId } = validatedData.data;
+    if (gatheringPageId) {
+      const expected = process.env.ADMIN_PASSWORD;
+      const supplied = req.headers.get("x-boardgame-admin");
+      if (!expected || !supplied || Buffer.byteLength(supplied) !== Buffer.byteLength(expected) ||
+          !timingSafeEqual(Buffer.from(expected), Buffer.from(supplied))) {
+        return NextResponse.json({ error: "請先登入管理員以關聯聚會" }, { status: 401 });
+      }
+    }
 
     // Phase 1: Create Play Session
     let playSession;
@@ -31,6 +40,7 @@ export async function POST(req: NextRequest) {
         date,
         location,
         notes,
+        ...(gatheringPageId ? { gatheringPageId } : {}),
       });
     } catch (error) {
       console.error('Failed to create play session:', error);
