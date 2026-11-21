@@ -1,6 +1,9 @@
 "use client";
+import "./collection.css";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
+import Link from "next/link";
+import { SlidersHorizontal, Shuffle, LockKeyhole, BookOpen } from "lucide-react";
 import type { NotionGame, SmartFilterTag } from "@/lib/types";
 import FilterBar from "./FilterBar";
 import GameCard from "./GameCard";
@@ -16,9 +19,8 @@ interface GameGalleryProps {
 
 type SortBy = "rating_desc" | "weight_desc" | "weight_asc";
 
-function getMaxPlayTimeLimit(games: NotionGame[]) {
-  const maxFromData = Math.max(...games.map((g) => g.playTime || 0));
-  return Math.max(240, maxFromData);
+function getMaxPlayTimeLimit() {
+  return 180; // 3 hours
 }
 
 const AUTH_TOKEN_KEY = "boardgame_auth_token";
@@ -47,7 +49,7 @@ function getContainerClass(mode: ViewMode): string {
 export default function GameGallery({ initialGames }: GameGalleryProps) {
   const [playerCount, setPlayerCount] = useState<number | null>(null);
   const [maxPlayTime, setMaxPlayTime] = useState(() =>
-    getMaxPlayTimeLimit(initialGames)
+    getMaxPlayTimeLimit()
   );
   const [minWeight, setMinWeight] = useState(1);
   const [sortBy, setSortBy] = useState<SortBy>("rating_desc");
@@ -99,11 +101,14 @@ export default function GameGallery({ initialGames }: GameGalleryProps) {
   );
 
   const maxPlayTimeLimit = useMemo(() => {
-    return getMaxPlayTimeLimit(initialGames);
-  }, [initialGames]);
+    return getMaxPlayTimeLimit();
+  }, []);
 
   useEffect(() => {
-    setMaxPlayTime((prev) => Math.min(prev, maxPlayTimeLimit));
+    setMaxPlayTime((prev) => {
+      if (prev >= 9999) return prev; // keep "3小時以上" selection
+      return Math.min(prev, maxPlayTimeLimit);
+    });
   }, [maxPlayTimeLimit]);
 
   useEffect(() => {
@@ -247,22 +252,34 @@ export default function GameGallery({ initialGames }: GameGalleryProps) {
 
   const showEmptySearch = searchTerm.trim().length > 0 && filteredGames.length === 0;
 
+  const resetFilters = () => {
+    setSearchTerm("");
+    setPlayerCount(null);
+    setMaxPlayTime(maxPlayTimeLimit);
+    setMinWeight(1);
+    setShowExpansions(false);
+    setOwnershipFilter('Owned');
+    setBestPlayerCountOnly(false);
+    setActiveSmartFilterId(null);
+  };
+
   return (
-    <main className="min-h-screen parchment-bg">
+    <main className="collection-workspace min-h-screen parchment-bg">
       {/* Header */}
-      <header className="border-b border-grid-line bg-parchment-light px-6 py-4">
+      <header className="collection-intro border-b border-grid-line bg-parchment-light px-6 py-4">
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-4">
           <div className="min-w-0">
             <h1 className="font-heading text-xl font-bold tracking-wider text-ink">
-              Board Game Collection
+              找遊戲
             </h1>
-            <p className="text-xs text-ink-muted font-body">
+            <p className="text-xs text-ink-muted font-body" role="status">
               {filteredGames.length} / {initialGames.length} 款
             </p>
           </div>
           <div className="flex items-center gap-2">
             <button
               type="button"
+              aria-label={isAdmin ? "管理員已登入" : "管理員登入"}
               onClick={() => {
                 const pwd = window.prompt("請輸入管理員密碼：");
                 if (pwd) {
@@ -274,9 +291,9 @@ export default function GameGallery({ initialGames }: GameGalleryProps) {
                   localStorage.setItem(AUTH_TOKEN_KEY, JSON.stringify(token));
                 }
               }}
-              className="text-ink-muted hover:text-ink transition-colors"
+              className="collection-admin text-ink-muted hover:text-ink transition-colors"
             >
-              {isAdmin ? '🔓' : '🔒'}
+              <LockKeyhole size={18} aria-hidden="true" />
             </button>
             {isAdmin && (
               <>
@@ -291,22 +308,8 @@ export default function GameGallery({ initialGames }: GameGalleryProps) {
                 >
                   鎖定
                 </button>
-                <button
-                  type="button"
-                  onClick={pickOne}
-                  className="btn-wax-seal rounded-lg px-4 py-2 text-xs"
-                >
-                  <span aria-hidden="true">🎲</span>
-                  幫我選
-                </button>
               </>
             )}
-            <button 
-              className="md:hidden p-2 text-ink-muted hover:text-ink"
-              onClick={() => setIsFilterExpanded(!isFilterExpanded)}
-            >
-              ⚙️
-            </button>
           </div>
         </div>
         {isAdmin && (
@@ -337,9 +340,16 @@ export default function GameGallery({ initialGames }: GameGalleryProps) {
         )}
       </header>
 
+      <section className="collection-shortcuts" aria-label="開始探索">
+        <div className="collection-shortcut-actions">
+          <button type="button" onClick={pickOne} disabled={filteredGames.length === 0} className="collection-primary"><Shuffle size={18} aria-hidden="true" />幫我選一款</button>
+          <Link href="/knowledge"><BookOpen size={18} aria-hidden="true" />前往規則庫</Link>
+        </div>
+      </section>
+
       {/* Sticky Control Bar: Search + View Toggle */}
-      <div className="sticky top-0 z-50 border-b border-grid-line bg-parchment-light/95 backdrop-blur-sm shadow-sm">
-        <div className="mx-auto flex max-w-7xl items-center gap-3 px-6 py-3">
+      <div className="collection-controls sticky top-0 z-30 border-b border-grid-line bg-parchment-light/95 backdrop-blur-sm">
+        <div className="mx-auto flex max-w-7xl flex-wrap items-center gap-3 px-6 py-3">
           <div className="flex-1">
             <SearchBar
               searchTerm={searchTerm}
@@ -348,11 +358,12 @@ export default function GameGallery({ initialGames }: GameGalleryProps) {
             />
           </div>
           <ViewToggle viewMode={viewMode} onChange={setViewMode} />
+          <button type="button" aria-expanded={isFilterExpanded} aria-controls="collection-filters" onClick={() => setIsFilterExpanded(!isFilterExpanded)} className="collection-filter-toggle md:hidden"><SlidersHorizontal size={18} aria-hidden="true" />篩選條件</button>
         </div>
       </div>
 
       {/* Filter Bar */}
-      <div className={`${isFilterExpanded ? 'block' : 'hidden'} md:block`}>
+      <div id="collection-filters" className={`${isFilterExpanded ? 'block' : 'hidden'} md:block`}>
         <FilterBar
           playerCount={playerCount}
           maxPlayTime={maxPlayTime}
@@ -386,10 +397,12 @@ export default function GameGallery({ initialGames }: GameGalleryProps) {
           >
             清除搜尋
           </button>
+          <button type="button" onClick={resetFilters} className="collection-reset">重設所有條件</button>
         </div>
       ) : filteredGames.length === 0 ? (
-        <div className="flex min-h-[50vh] items-center justify-center p-8">
+        <div className="flex min-h-[50vh] flex-col items-center justify-center gap-4 p-8">
           <p className="text-sm text-ink-muted">沒有符合篩選條件的遊戲。</p>
+          <button type="button" onClick={resetFilters} className="collection-reset">重設所有條件</button>
         </div>
       ) : (
         <section
@@ -413,7 +426,8 @@ export default function GameGallery({ initialGames }: GameGalleryProps) {
         <button
           type="button"
           onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
-          className="fixed bottom-4 right-4 h-11 w-11 rounded-full bg-parchment text-ink shadow-euro border border-grid-line hover:border-brass transition-colors"
+          aria-label="返回頂端"
+          className="collection-scroll-top fixed bottom-4 right-4 h-11 w-11 rounded-full bg-parchment text-ink shadow-euro border border-grid-line hover:border-brass transition-colors"
         >
           ↑
         </button>
