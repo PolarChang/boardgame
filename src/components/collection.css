@@ -1,0 +1,33 @@
+
+ .collection-workspace button:focus-visible, .collection-shortcuts a:focus-visible { outline: 3px solid #a46e3c; outline-offset: 3px; }
+.collection-workspace.parchment-bg { background-image: none; }
+.collection-workspace.parchment-bg::before { display: none; }
+.collection-intro { padding-top: 40px; padding-bottom: 30px; }
+.collection-intro > div:first-child { align-items: flex-start; }
+.collection-intro h1 { font-family: var(--font-noto-sans-tc), sans-serif; font-size: clamp(25px, 4vw, 38px); font-weight: 500; line-height: 1.45; letter-spacing: -.03em; margin: 10px 0; }
+.collection-eyebrow { font-size: 11px; letter-spacing: .16em; color: #896039; font-weight: 700; }
+.collection-subtitle { font-size: 14px; line-height: 1.8; margin-bottom: 14px; }
+.collection-admin { min-width: 44px; min-height: 44px; display: inline-flex; align-items: center; justify-content: center; border: 1px solid #d9d9cb; border-radius: 10px; }
+.collection-shortcuts { display: flex; align-items: center; justify-content: space-between; gap: 22px; max-width: 1232px; margin: 26px auto; padding: 25px 28px; border: 1px solid #d6dfd1; border-radius: 16px; background: #e9eee4; color: #253c36; }
+.collection-shortcuts p { font-size: 14px; margin-top: 7px; }
+.collection-shortcut-actions { display: flex; align-items: center; gap: 12px; flex-shrink: 0; }
+.collection-shortcut-actions button, .collection-shortcut-actions a, .collection-filter-toggle, .collection-reset { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; border-radius: 10px; padding: 10px 16px; font-size: 14px; }
+.collection-primary { background: #285c49; color: #fffefa; }
+.collection-primary:disabled { opacity: .5; cursor: not-allowed; }
+.collection-shortcut-actions a, .collection-filter-toggle, .collection-reset { border: 1px solid #c8d2c3; }
+.collection-controls input { min-height: 46px; }
+.collection-workspace .card-euro { border-radius: 14px; overflow: hidden; }
+.dark .collection-shortcuts { background: #25372c; color: #e4ebdf; border-color: #43503d; }
+.dark .collection-eyebrow { color: #cfaf7a; }
+@media (max-width: 767px) {
+  .collection-intro { padding: 26px 20px 24px; }
+  .collection-shortcuts { margin: 20px; padding: 21px; flex-direction: column; align-items: stretch; gap: 18px; }
+  .collection-shortcut-actions { flex-wrap: wrap; }
+  .collection-shortcut-actions button, .collection-shortcut-actions a { flex: 1; white-space: nowrap; padding: 10px; }
+  .collection-controls > div { padding-left: 20px; padding-right: 20px; }
+  .collection-controls > div > div:first-child { min-width: 0; }
+  .collection-scroll-top { bottom: calc(90px + env(safe-area-inset-bottom)); z-index: 35; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .collection-workspace * { transition: none !important; animation: none !important; }
+}

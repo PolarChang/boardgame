@@ -123,7 +123,7 @@ export default function FilterBar({
           {/* Max Play Time Slider */}
           <label className="flex-1 text-sm">
             <span className="mb-2 block font-heading text-xs font-semibold uppercase tracking-widest text-ink-light">
-              最長時間：{maxPlayTime >= 9999 ? "∞" : `${maxPlayTime} 分鐘`}
+              最長時間：{maxPlayTime >= 9999 ? "3小時以上" : `${maxPlayTime} 分鐘`}
             </span>
             <input
               type="range"
@@ -141,6 +141,17 @@ export default function FilterBar({
                 } as React.CSSProperties
               }
             />
+            <button
+              type="button"
+              onClick={() => onMaxPlayTimeChange(9999)}
+              className={`mt-2 rounded-full px-3.5 py-1.5 text-sm font-medium transition-colors ${
+                maxPlayTime >= 9999
+                  ? "bg-ink text-parchment"
+                  : "border border-grid-line bg-transparent text-ink-light hover:border-brass hover:bg-brass/5 hover:text-ink"
+              }`}
+            >
+              3小時以上
+            </button>
           </label>
 
           {/* Min Weight Slider */}

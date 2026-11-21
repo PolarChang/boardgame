@@ -1,0 +1,94 @@
+name: Verification browser (observe)
+on: [pull_request, workflow_dispatch]
+permissions:
+  contents: read
+jobs:
+  browser-flows:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      KNOWLEDGE_BACKEND_DIR: ${{ github.workspace }}/.verification-backend
+      PYTHONDONTWRITEBYTECODE: '1'
+      KNOWLEDGE_DISABLE_LOCAL_ENV: 'true'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Checkout immutable public model-free fixture dependency
+        uses: actions/checkout@v4
+        with:
+          repository: PolarChang/BoardGameRules
+          ref: 26a893862e29150f95a57ffae951f94bcf691630
+          path: .verification-backend
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - uses: actions/setup-python@v5
+        id: python
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: .verification-backend/tests/rule_knowledge/requirements-ci.txt
+      - run: npm ci --ignore-scripts
+      - run: python -m pip install -r .verification-backend/tests/rule_knowledge/requirements-ci.txt
+      - run: npx playwright install --with-deps chromium
+      - id: backend_tests
+        continue-on-error: true
+        working-directory: .verification-backend
+        run: python -m pytest tests/rule_knowledge -q --junitxml=tmp/ci-backend.xml
+      - id: fixture
+        continue-on-error: true
+        run: npm run verify
+      - id: fixture_calibration
+        continue-on-error: true
+        run: npm run verify:calibrate
+      - id: integration
+        continue-on-error: true
+        env:
+          KNOWLEDGE_PYTHON: ${{ steps.python.outputs.python-path }}
+        run: npm run verify:integration
+      - id: integration_calibration
+        continue-on-error: true
+        env:
+          KNOWLEDGE_PYTHON: ${{ steps.python.outputs.python-path }}
+        run: npm run verify:integration:calibrate
+      - id: pdf
+        continue-on-error: true
+        env:
+          KNOWLEDGE_PYTHON: ${{ steps.python.outputs.python-path }}
+        run: npm run verify:pdf
+      - name: Record exact revisions and per-flow outcomes
+        if: always()
+        env:
+          CANDIDATE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          BACKEND_RESULT: ${{ steps.backend_tests.outcome }}
+          FIXTURE_RESULT: ${{ steps.fixture.outcome }}
+          FIXTURE_CALIBRATION_RESULT: ${{ steps.fixture_calibration.outcome }}
+          INTEGRATION_RESULT: ${{ steps.integration.outcome }}
+          INTEGRATION_CALIBRATION_RESULT: ${{ steps.integration_calibration.outcome }}
+          PDF_RESULT: ${{ steps.pdf.outcome }}
+        run: node scripts/verification/browser-ci-report.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: browser-verification-evidence-untrusted
+          path: |
+            tmp/verification/browser-ci/
+            tmp/verification/report/
+            tmp/verification/results.json
+            tmp/verification/version.json
+            tmp/verification/calibration/
+            tmp/verification/integration/report/
+            tmp/verification/integration/results.json
+            tmp/verification/integration/version.json
+            tmp/verification/integration/calibration/
+            tmp/verification/pdf/report/
+            tmp/verification/pdf/results.json
+            .verification-backend/tmp/ci-backend.xml
+      - name: Surface incomplete or failed flows without enabling a merge gate
+        if: always()
+        run: node scripts/verification/browser-ci-report.mjs --check

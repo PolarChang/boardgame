@@ -62,6 +62,23 @@ describe('GameGallery', () => {
     localStorage.clear();
   });
 
+  it('lets visitors pick a game without administrator login', () => {
+    render(<GameGallery initialGames={mockGames} />);
+    fireEvent.click(screen.getByRole('button', { name: '幫我選一款' }));
+    expect(screen.getByRole('button', { name: /換一個/ })).toBeInTheDocument();
+  });
+
+  it('exposes filter expansion and recovers from an empty result', () => {
+    render(<GameGallery initialGames={mockGames} />);
+    const filters = screen.getByRole('button', { name: '篩選條件' });
+    expect(filters).toHaveAttribute('aria-expanded', 'false');
+    fireEvent.click(filters);
+    expect(filters).toHaveAttribute('aria-expanded', 'true');
+    fireEvent.change(screen.getByPlaceholderText(/搜尋桌遊名稱/i), { target: { value: 'no matching game' } });
+    fireEvent.click(screen.getByRole('button', { name: '重設所有條件' }));
+    expect(screen.getByText(/3 \/ 3 款/)).toBeInTheDocument();
+  });
+
   describe('搜尋功能', () => {
     it('輸入「伯明翰」時應正確顯示《伯明翰》，且隱藏其他不相符的桌遊', () => {
       render(<GameGallery initialGames={mockGames} />);

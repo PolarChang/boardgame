@@ -9,9 +9,14 @@
     "lint": "eslint src --ext .ts,.tsx",
     "sync:bgg": "tsx scripts/sync-bgg.ts",
     "test": "vitest run",
-    "verify:properties": "vitest run scripts/verification/picks-properties.test.ts",
+    "verify:properties": "vitest run scripts/verification/properties.test.ts scripts/verification/picks-properties.test.ts",
     "verify:differential": "tsx scripts/verification/differential.ts",
     "verify:observe": "node scripts/verification/observe.mjs",
+    "verify": "playwright test --config scripts/verification/playwright.config.ts",
+    "verify:calibrate": "node scripts/verification/calibrate.mjs",
+    "verify:integration": "playwright test --config scripts/verification/integration.config.ts",
+    "verify:integration:calibrate": "node scripts/verification/integration-calibrate.mjs",
+    "verify:pdf": "playwright test --config scripts/verification/pdf.config.ts",
     "test:watch": "vitest"
   },
   "dependencies": {
@@ -26,6 +31,7 @@
     "zod": "^4.4.3"
   },
   "devDependencies": {
+    "@playwright/test": "^1.65.1",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",
     "@types/node": "^20.17.6",
