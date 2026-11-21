@@ -14,12 +14,12 @@ const rulesHeaders = (headers: HeadersInit = {}) => ({
  * `/api/rules/games`, which remains the legacy RAG game-name list used by the
  * existing rules-search page.
  */
-export async function GET(request?: Request) {
-  const publicList = request && new URL(request.url).searchParams.get("public") === "1";
+export async function GET(request: Request) {
+  const publicList = new URL(request.url).searchParams.get("public") === "1";
   try {
     const upstream = publicList ? process.env.BOARDGAME_RULES_API_URL || "http://localhost:8000" : RULES_API_URL;
     const response = await fetch(`${upstream}/api/knowledge/games`, {
-      headers: publicList ? { Accept: "application/json", "X-Rules-API-Key": process.env.RULES_API_KEY || "" } : rulesHeaders({ Accept: "application/json", "X-Knowledge-Admin": request ? sessionKey(request) : "" }),
+      headers: publicList ? { Accept: "application/json", "X-Rules-API-Key": process.env.RULES_API_KEY || "" } : rulesHeaders({ Accept: "application/json", "X-Knowledge-Admin": sessionKey(request) }),
       cache: "no-store",
     });
 

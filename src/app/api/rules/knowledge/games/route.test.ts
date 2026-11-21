@@ -10,7 +10,7 @@ describe("GET /api/rules/knowledge/games", () => {
     const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({ games }), { status: 200 }));
     vi.stubGlobal("fetch", fetchMock);
 
-    const response = await GET();
+    const response = await GET(new Request("http://localhost/api/rules/knowledge/games"));
 
     expect(response.status).toBe(200);
     expect(await response.json()).toEqual({ games });
@@ -23,7 +23,7 @@ describe("GET /api/rules/knowledge/games", () => {
   it("returns a gateway error when the knowledge service is unreachable", async () => {
     vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("offline")));
 
-    const response = await GET();
+    const response = await GET(new Request("http://localhost/api/rules/knowledge/games"));
 
     expect(response.status).toBe(502);
     expect(await response.json()).toEqual({ error: "Failed to connect to rules knowledge service" });

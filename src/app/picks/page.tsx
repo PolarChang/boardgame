@@ -209,9 +209,7 @@ function parseSelectedCount(
 export default async function PicksPage({
   searchParams,
 }: {
-  searchParams?:
-    | Promise<Record<string, string | string[] | undefined>>
-    | Record<string, string | string[] | undefined>;
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const resolvedSearchParams = await searchParams;
   const selectedCount = parseSelectedCount(resolvedSearchParams);
