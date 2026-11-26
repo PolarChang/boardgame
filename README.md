@@ -480,3 +480,7 @@ Dark mode 透過 `layout.tsx` 內嵌 script + Tailwind `dark:` class 支援。
 
 - [`docs/FRONTEND_WEB.md`](./docs/FRONTEND_WEB.md) — 前端元件規格
 - [`docs/SYNC_PIPELINE.md`](./docs/SYNC_PIPELINE.md) — BGG 同步管線規格
+
+### 精選推薦與聚會入口
+
+網站的 `/picks` 依人數顯示推薦。上游逾時或資料格式不符時，服務使用該程序最近一次有效的推薦資料。聚會與報名入口位於 `/meet/index.html`。

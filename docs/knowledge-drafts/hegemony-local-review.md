@@ -1927,14 +1927,14 @@ PDF頁碼：34
 條件：公司帶有罷工標記。
 步驟：不適用
 成本：本條不新增費用；實際指派或出售仍依所選行動成本。
-結果：罷工標記可能因公司空缺或出售而移除。
+結果：若工人調離使公司停止運作，移除罷工標記。若罷工結算時公司已無工人且不再運作，只移除標記，工人階級不獲得影響力。
 限制：一般重新指派不可移動承諾工人；一般出售不可選有承諾工人的公司。
 例外：財政政策強制關閉及私有化另依特別規則；不能把本條一般出售限制覆蓋那些例外。
 相關規則：RULE-024, RULE-035, RULE-051
 來源：SRC-001
-PDF頁碼：35
+PDF頁碼：16, 35
 原文：If a Company has a Strike token on it, can the Workers there be assigned elsewhere by the Working Class? As long as the Workers are not committed, the Working Class may assign them elsewhere if it wants... Can a Company that is on Strike, be sold? Yes... When Strikes are resolved, what happens if there are no longer Workers in a Company with a Strike token? Since the Company is no longer operational, nothing happens and the Strike token is just removed. Note that the Working Class does not gain Influence from that token.
-狀態：待確認
+狀態：已確認
 
 #### 規則 RULE-088
 大項：例外與 FAQ
@@ -2450,31 +2450,31 @@ PDF頁碼：38
 狀態：待確認
 
 #### FAQ FAQ-001
-問題：如果一間公司有罷工標記，工人階級可以將該處的工人指派到其他地方嗎？
-答案：可以，只要工人未處於承諾狀態 (not committed)，工人階級即可將他們指派到其他地方。
+問題：公司有罷工標記時，工人階級還能把自己在這間公司的工人指派到別處嗎？
+答案：可以，仍依一般指派規則。要移動的工人必須未處於承諾狀態。若調離後公司停止運作，就移除罷工標記。
 引用：RULE-087
 角色：工人階級
 人數：全部
 擴充：基本遊戲
-狀態：待確認
+狀態：已確認
 
 #### FAQ FAQ-002
-問題：帶有罷工標記的公司可以被出售嗎？
-答案：可以，只要工人未處於承諾狀態，該公司仍可被出售。
+問題：公司有罷工標記時，能用一般出售公司行動賣掉它嗎？
+答案：可以。公司裡的工人若都未處於承諾狀態，仍可依一般規則出售。若是財政政策變動導致國家被迫出售公營公司，應另外核對該情境的規則。
 引用：RULE-087
 角色：資本家階級, 中產階級, 國家
 人數：全部
 擴充：基本遊戲
-狀態：待確認
+狀態：已確認
 
 #### FAQ FAQ-003
-問題：當罷工結算時，如果帶有罷工標記的公司已經沒有工人了，會發生什麼事？
-答案：由於該公司已不再運作，什麼事都不會發生，直接移除罷工標記。工人階級也不會因此獲得影響力。
+問題：罷工結算時，帶有罷工標記的公司已無工人且停止運作，工人階級還會拿到影響力嗎？
+答案：不會。只移除這枚罷工標記，工人階級不會因此獲得影響力。
 引用：RULE-087
 角色：工人階級
 人數：全部
 擴充：基本遊戲
-狀態：待確認
+狀態：已確認
 
 #### FAQ FAQ-004
 問題：如果一間帶有工人階級員工空位的中產階級公司，因為中產工人被調離而沒有中產階級工人運營，工人階級在判斷「示威」條件時，應將該空位算入可用空位嗎？

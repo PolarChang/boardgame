@@ -1,0 +1,1674 @@
+--- a/next.config.js
++++ b/next.config.js
+@@ -7,0 +8,6 @@
++        pathname: "/**",
++      },
++      {
++        protocol: "https",
++        hostname: "boardgamegeek.com",
++        pathname: "/**",
+--- a/package.json
++++ b/package.json
+@@ -7 +7 @@
+-    "build": "next build",
++    "build": "next build --webpack",
+--- a/src/app/api/games/route.ts
++++ b/src/app/api/games/route.ts
+@@ -5 +5,2 @@
+-import { getGamesFromNotion } from "@/lib/notion";
++import { getGamesFromNotion, invalidateDashboardCache } from "@/lib/notion";
++import { invalidateCache } from "@/lib/notion-cache";
+@@ -95,0 +97,3 @@
++    invalidateCache("notion:main_games");
++    invalidateDashboardCache();
++
+--- a/src/app/api/rules/knowledge/games/[gameId]/editorial/[[...action]]/route.ts
++++ b/src/app/api/rules/knowledge/games/[gameId]/editorial/[[...action]]/route.ts
+@@ -2,0 +3,7 @@
++import {
++  isAllowedEditorialAction,
++  isPdfSourceAction,
++  isPngStreamAction,
++  isPublicReadAction,
++  isSameSiteOrigin,
++} from "@/lib/editorial-proxy-routes";
+@@ -9,0 +17,199 @@
++
++const NO_STORE_HEADERS = { "Cache-Control": "private, no-store" };
++
++async function handleVercelSession(request: Request, gameId: string, savedKey: string) {
++  if (!["GET", "POST", "DELETE"].includes(request.method)) {
++    return NextResponse.json({ error: "找不到操作" }, { status: 404, headers: NO_STORE_HEADERS });
++  }
++  if (request.method !== "GET" && !isSameSiteOrigin(request)) {
++    return NextResponse.json({ error: "請從本站操作" }, { status: 403, headers: NO_STORE_HEADERS });
++  }
++  const key = request.method === "POST" ? request.headers.get("X-Knowledge-Admin") || "" : savedKey;
++  if (!key && request.method === "GET") {
++    return NextResponse.json({ authenticated: false }, { headers: NO_STORE_HEADERS });
++  }
++  if (!key || key.length > 1024) {
++    return NextResponse.json({ error: "請先管理登入" }, { status: 401, headers: NO_STORE_HEADERS });
++  }
++  try {
++    const baseUrl = process.env.KNOWLEDGE_PRIVATE_API_URL || process.env.BOARDGAME_RULES_API_URL;
++    const apiKey = (process.env.KNOWLEDGE_PRIVATE_API_URL ? process.env.KNOWLEDGE_PRIVATE_API_KEY : process.env.RULES_API_KEY) || "";
++    const upstream = await fetch(
++      `${baseUrl}/api/knowledge/games/${encodeURIComponent(gameId)}/editorial/session`,
++      {
++        method: request.method,
++        cache: "no-store",
++        signal: AbortSignal.timeout(10000),
++        headers: { "X-Knowledge-Admin": key, "X-Rules-API-Key": apiKey },
++      }
++    );
++    if (request.method === "GET" && upstream.status === 401) {
++      return NextResponse.json({ authenticated: false }, { headers: NO_STORE_HEADERS });
++    }
++    if (!upstream.ok) {
++      return NextResponse.json(
++        { error: "無法驗證管理登入，請確認密碼或稍後重試" },
++        { status: upstream.status, headers: NO_STORE_HEADERS }
++      );
++    }
++    const data = await upstream.json();
++    if (request.method === "POST" && !/^ksession\.[a-f0-9]{64}$/.test(data.token || "")) {
++      throw new Error("Invalid session");
++    }
++    const response = NextResponse.json({ authenticated: request.method !== "DELETE" }, { headers: NO_STORE_HEADERS });
++    if (request.method !== "GET") {
++      response.cookies.set(sessionCookie, request.method === "DELETE" ? "" : data.token, {
++        httpOnly: true,
++        sameSite: "strict",
++        secure: true,
++        path: "/api/rules",
++        maxAge: request.method === "DELETE" ? 0 : 7200,
++      });
++    }
++    return response;
++  } catch {
++    return NextResponse.json({ error: "管理登入服務暫時無法使用" }, { status: 503, headers: NO_STORE_HEADERS });
++  }
++}
++
++async function handleLocalSession(request: Request, gameId: string, savedKey: string) {
++  if (request.method === "GET") {
++    return NextResponse.json({ authenticated: Boolean(savedKey) }, { headers: NO_STORE_HEADERS });
++  }
++  if (!isSameSiteOrigin(request)) {
++    return NextResponse.json({ error: "請從本站操作" }, { status: 403 });
++  }
++  if (request.method === "DELETE") {
++    revokeSession(request);
++    const response = NextResponse.json({ authenticated: false }, { headers: NO_STORE_HEADERS });
++    response.cookies.set(sessionCookie, "", { httpOnly: true, sameSite: "strict", path: "/api/rules", maxAge: 0 });
++    return response;
++  }
++  if (request.method === "POST") {
++    const key = request.headers.get("X-Knowledge-Admin") || "";
++    if (!key || key.length > 1024) {
++      return NextResponse.json({ error: "請輸入管理密碼" }, { status: 401 });
++    }
++    try {
++      const baseUrl = (process.env.KNOWLEDGE_PRIVATE_API_URL || process.env.BOARDGAME_RULES_API_URL) || "http://localhost:8000";
++      const apiKey = (process.env.KNOWLEDGE_PRIVATE_API_URL ? process.env.KNOWLEDGE_PRIVATE_API_KEY : process.env.RULES_API_KEY) || "";
++      const checked = await fetch(
++        `${baseUrl}/api/knowledge/games/${encodeURIComponent(gameId)}/editorial/history`,
++        {
++          cache: "no-store",
++          signal: AbortSignal.timeout(10000),
++          headers: { "X-Knowledge-Admin": key, "X-Rules-API-Key": apiKey },
++        }
++      );
++      if (!checked.ok) {
++        return NextResponse.json(
++          { error: checked.status === 401 ? "管理密碼不正確" : "無法驗證管理登入" },
++          { status: checked.status }
++        );
++      }
++      const response = NextResponse.json({ authenticated: true }, { headers: NO_STORE_HEADERS });
++      response.cookies.set(sessionCookie, createSession(key), {
++        httpOnly: true,
++        sameSite: "strict",
++        secure: new URL(request.url).protocol === "https:",
++        path: "/api/rules",
++        maxAge: 7200,
++      });
++      return response;
++    } catch {
++      return NextResponse.json({ error: "管理登入服務暫時無法使用" }, { status: 503 });
++    }
++  }
++  return NextResponse.json({ error: "找不到操作" }, { status: 404 });
++}
++
++async function handleLocalReadiness(request: Request, savedKey: string) {
++  const key = savedKey || request.headers.get("X-Knowledge-Admin");
++  if (!key) {
++    return NextResponse.json({ error: "請先管理登入" }, { status: 401, headers: NO_STORE_HEADERS });
++  }
++  const upstream = (process.env.KNOWLEDGE_PRIVATE_API_URL || process.env.BOARDGAME_RULES_API_URL) || "http://localhost:8000";
++  const isLoopback = ["localhost", "127.0.0.1"].includes(new URL(upstream).hostname);
++  if (!process.env.KNOWLEDGE_PRIVATE_API_URL && (process.env.VERCEL === "1" || !isLoopback)) {
++    return NextResponse.json({ error: "此環境未提供本機模型狀態" }, { status: 404, headers: NO_STORE_HEADERS });
++  }
++  try {
++    const apiKey = (process.env.KNOWLEDGE_PRIVATE_API_URL ? process.env.KNOWLEDGE_PRIVATE_API_KEY : process.env.RULES_API_KEY) || "";
++    const response = await fetch(`${upstream}/api/local/readiness`, {
++      cache: "no-store",
++      signal: AbortSignal.timeout(5000),
++      headers: { "X-Knowledge-Admin": key, "X-Rules-API-Key": apiKey },
++    });
++    const payload = response.ok
++      ? await response.json()
++      : { error: response.status === 401 ? "請重新管理登入" : "無法確認本機模型狀態" };
++    return NextResponse.json(payload, { status: response.status, headers: NO_STORE_HEADERS });
++  } catch {
++    return NextResponse.json({ error: "無法連線至本機狀態服務" }, { status: 502, headers: NO_STORE_HEADERS });
++  }
++}
++
++async function handleGoogleDocReader(
++  request: Request,
++  gameId: string,
++  savedKey: string,
++  body: Record<string, unknown> | undefined,
++  privateRules: string,
++  docsReaderKey: string
++) {
++  const origin = new URL(request.url);
++  if (request.headers.get("origin") !== origin.origin) {
++    return NextResponse.json({ error: "請從本站操作" }, { status: 403, headers: NO_STORE_HEADERS });
++  }
++  const managementKey = savedKey || request.headers.get("X-Knowledge-Admin");
++  if (!managementKey) {
++    return NextResponse.json({ error: "請先管理登入" }, { status: 401, headers: NO_STORE_HEADERS });
++  }
++  if (typeof body?.url !== "string" || body.url.length > 2000) {
++    return NextResponse.json({ error: "請提供 Google Docs 文件連結" }, { status: 422, headers: NO_STORE_HEADERS });
++  }
++  const cloud = process.env.BOARDGAME_RULES_API_URL;
++  try {
++    const access = await fetch(
++      new URL(`/api/knowledge/games/${encodeURIComponent(gameId)}/editorial/session`, privateRules),
++      {
++        cache: "no-store",
++        redirect: "error",
++        signal: AbortSignal.timeout(10000),
++        headers: {
++          "X-Knowledge-Admin": managementKey,
++          "X-Rules-API-Key": process.env.KNOWLEDGE_PRIVATE_API_KEY || "",
++        },
++      }
++    );
++    if (access.status === 401 || access.status === 404) {
++      return NextResponse.json({ error: "請先管理登入並確認遊戲存在" }, { status: access.status, headers: NO_STORE_HEADERS });
++    }
++    if (!access.ok || !cloud) throw new Error("Docs reader unavailable");
++    const result = await fetch(new URL("/api/internal/editorial/google-doc", cloud), {
++      method: "POST",
++      cache: "no-store",
++      redirect: "error",
++      signal: AbortSignal.timeout(35000),
++      headers: {
++        "Content-Type": "application/json",
++        "X-Rules-API-Key": process.env.RULES_API_KEY || "",
++        "X-Docs-Reader-Key": docsReaderKey,
++      },
++      body: JSON.stringify({ url: body.url }),
++    });
++    if (result.status === 401 || result.status === 403) throw new Error("Docs reader authorization failed");
++    const data = await result.json();
++    if (result.ok && typeof data.text !== "string") throw new Error("Invalid Docs reader response");
++    return NextResponse.json(
++      result.ok ? { text: data.text } : { error: typeof data.detail === "string" ? data.detail : "無法讀取 Google Docs" },
++      { status: result.status, headers: NO_STORE_HEADERS }
++    );
++  } catch {
++    return NextResponse.json(
++      { error: "Google Docs 讀取服務暫時無法使用，請稍後重試或貼上文字。" },
++      { status: 503, headers: NO_STORE_HEADERS }
++    );
++  }
++}
++
+@@ -14 +220,4 @@
+-  if (path === "public-release") return syncEditorialRelease(request, gameId, savedKey || "");
++
++  if (path === "public-release") {
++    return syncEditorialRelease(request, gameId, savedKey || "");
++  }
+@@ -16,16 +225 @@
+-    const headers = { "Cache-Control": "private, no-store" };
+-    if (!["GET", "POST", "DELETE"].includes(request.method)) return NextResponse.json({ error: "找不到操作" }, { status: 404, headers });
+-    if (request.method !== "GET" && request.headers.get("origin") !== `${new URL(request.url).protocol}//${request.headers.get("host") || new URL(request.url).host}`) return NextResponse.json({ error: "請從本站操作" }, { status: 403, headers });
+-    const key = request.method === "POST" ? request.headers.get("X-Knowledge-Admin") || "" : savedKey;
+-    if (!key && request.method === "GET") return NextResponse.json({ authenticated: false }, { headers });
+-    if (!key || key.length > 1024) return NextResponse.json({ error: "請先管理登入" }, { status: 401, headers });
+-    try {
+-      const upstream = await fetch(`${(process.env.KNOWLEDGE_PRIVATE_API_URL || process.env.BOARDGAME_RULES_API_URL)}/api/knowledge/games/${encodeURIComponent(gameId)}/editorial/session`, { method: request.method, cache: "no-store", signal: AbortSignal.timeout(10000), headers: { "X-Knowledge-Admin": key, "X-Rules-API-Key": (process.env.KNOWLEDGE_PRIVATE_API_URL ? process.env.KNOWLEDGE_PRIVATE_API_KEY : process.env.RULES_API_KEY) || "" } });
+-      if (request.method === "GET" && upstream.status === 401) return NextResponse.json({ authenticated: false }, { headers });
+-      if (!upstream.ok) return NextResponse.json({ error: "無法驗證管理登入，請確認密碼或稍後重試" }, { status: upstream.status, headers });
+-      const data = await upstream.json();
+-      if (request.method === "POST" && !/^ksession\.[a-f0-9]{64}$/.test(data.token || "")) throw new Error("Invalid session");
+-      const response = NextResponse.json({ authenticated: request.method !== "DELETE" }, { headers });
+-      if (request.method !== "GET") response.cookies.set(sessionCookie, request.method === "DELETE" ? "" : data.token, { httpOnly: true, sameSite: "strict", secure: true, path: "/api/rules", maxAge: request.method === "DELETE" ? 0 : 7200 });
+-      return response;
+-    } catch { return NextResponse.json({ error: "管理登入服務暫時無法使用" }, { status: 503, headers }); }
++    return handleVercelSession(request, gameId, savedKey);
+@@ -34,35 +228,13 @@
+-    const key = savedKey || request.headers.get("X-Knowledge-Admin");
+-    if (!key) return NextResponse.json({ error: "請先管理登入" }, { status: 401, headers: { "Cache-Control": "private, no-store" } });
+-    const upstream = (process.env.KNOWLEDGE_PRIVATE_API_URL || process.env.BOARDGAME_RULES_API_URL) || "http://localhost:8000";
+-    if (!process.env.KNOWLEDGE_PRIVATE_API_URL && (process.env.VERCEL === "1" || !["localhost", "127.0.0.1"].includes(new URL(upstream).hostname))) return NextResponse.json({ error: "此環境未提供本機模型狀態" }, { status: 404, headers: { "Cache-Control": "private, no-store" } });
+-    try {
+-      const response = await fetch(`${upstream}/api/local/readiness`, { cache: "no-store", signal: AbortSignal.timeout(5000), headers: { "X-Knowledge-Admin": key, "X-Rules-API-Key": (process.env.KNOWLEDGE_PRIVATE_API_URL ? process.env.KNOWLEDGE_PRIVATE_API_KEY : process.env.RULES_API_KEY) || "" } });
+-      return NextResponse.json(response.ok ? await response.json() : { error: response.status === 401 ? "請重新管理登入" : "無法確認本機模型狀態" }, { status: response.status, headers: { "Cache-Control": "private, no-store" } });
+-    } catch { return NextResponse.json({ error: "無法連線至本機狀態服務" }, { status: 502, headers: { "Cache-Control": "private, no-store" } }); }
+-  }
+-  if (path === "session" && request.method === "GET") return NextResponse.json({ authenticated: Boolean(savedKey) }, { headers: { "Cache-Control": "private, no-store" } });
+-  if ((savedKey || path === "session") && request.method !== "GET") {
+-    const origin = request.headers.get("origin");
+-    if (!origin || origin !== `${new URL(request.url).protocol}//${request.headers.get("host") || new URL(request.url).host}`) return NextResponse.json({ error: "請從本站操作" }, { status: 403 });
+-  }
+-  if (path === "session" && request.method === "DELETE") {
+-    revokeSession(request);
+-    const response = NextResponse.json({ authenticated: false }, { headers: { "Cache-Control": "private, no-store" } });
+-    response.cookies.set(sessionCookie, "", { httpOnly: true, sameSite: "strict", path: "/api/rules", maxAge: 0 });
+-    return response;
+-  }
+-  if (path === "session" && request.method === "POST") {
+-    const key = request.headers.get("X-Knowledge-Admin") || "";
+-    if (!key || key.length > 1024) return NextResponse.json({ error: "請輸入管理密碼" }, { status: 401 });
+-    try {
+-      const checked = await fetch(`${(process.env.KNOWLEDGE_PRIVATE_API_URL || process.env.BOARDGAME_RULES_API_URL) || "http://localhost:8000"}/api/knowledge/games/${encodeURIComponent(gameId)}/editorial/history`, { cache: "no-store", signal: AbortSignal.timeout(10000), headers: { "X-Knowledge-Admin": key, "X-Rules-API-Key": (process.env.KNOWLEDGE_PRIVATE_API_URL ? process.env.KNOWLEDGE_PRIVATE_API_KEY : process.env.RULES_API_KEY) || "" } });
+-      if (!checked.ok) return NextResponse.json({ error: checked.status === 401 ? "管理密碼不正確" : "無法驗證管理登入" }, { status: checked.status });
+-      const response = NextResponse.json({ authenticated: true }, { headers: { "Cache-Control": "private, no-store" } });
+-      response.cookies.set(sessionCookie, createSession(key), { httpOnly: true, sameSite: "strict", secure: new URL(request.url).protocol === "https:", path: "/api/rules", maxAge: 7200 });
+-      return response;
+-    } catch { return NextResponse.json({ error: "管理登入服務暫時無法使用" }, { status: 503 }); }
+-  }
+-
+-  const allowed = request.method === "GET" ? /^(?:imports(?:\/[a-f0-9]{32}\/(?:draft|source|document|context|locations|quality|feedback|answers|questions(?:\/[a-f0-9]{64})?|pages\/[1-9][0-9]*\/(?:blocks\/[1-9][0-9]*\/)?image))?|gemini-usage|deepseek-usage|history|pending|review\/[a-f0-9]{64}|versions\/[a-f0-9]{64}|visuals\/[a-f0-9]{64}|community(?:\/review)?)?$/ : request.method === "PUT" ? /^(?:imports\/staged\/[a-f0-9]{64}\/[0-9]{1,2}|community\/contributions\/[a-f0-9]{32}\/vote)$/ : /^(imports(?:\/[a-f0-9]{32}\/(?:resume|retry|document|context|ask|feedback|repair|questions(?:\/[a-f0-9]{64}\/cancel)?))?|drafts|submit|review|publish|google-doc|ask|visuals\/(?:crop|upload-url|export)|community\/(?:contributions|comments|reports|review))$/;
+-  if (!allowed.test(path)) return NextResponse.json({ error: "找不到操作" }, { status: 404 });
+-  let body;
++    return handleLocalReadiness(request, savedKey);
++  }
++  if (path === "session") {
++    return handleLocalSession(request, gameId, savedKey);
++  }
++  if (savedKey && request.method !== "GET" && !isSameSiteOrigin(request)) {
++    return NextResponse.json({ error: "請從本站操作" }, { status: 403 });
++  }
++  if (!isAllowedEditorialAction(request.method, path)) {
++    return NextResponse.json({ error: "找不到操作" }, { status: 404 });
++  }
++
++  let body: Record<string, unknown> | undefined;
+@@ -70,0 +243 @@
++
+@@ -72,3 +245,9 @@
+-    if (process.env.KNOWLEDGE_STAGED_UPLOAD !== "1") return NextResponse.json({ error: "分段匯入尚未啟用" }, { status: 404 });
+-    if (!savedKey && !request.headers.get("X-Knowledge-Admin")) return NextResponse.json({ error: "請先管理登入" }, { status: 401 });
+-    if (Number(request.headers.get("content-length")) > 2_000_000) return NextResponse.json({ error: "檔案分段大小不符" }, { status: 413 });
++    if (process.env.KNOWLEDGE_STAGED_UPLOAD !== "1") {
++      return NextResponse.json({ error: "分段匯入尚未啟用" }, { status: 404 });
++    }
++    if (!savedKey && !request.headers.get("X-Knowledge-Admin")) {
++      return NextResponse.json({ error: "請先管理登入" }, { status: 401 });
++    }
++    if (Number(request.headers.get("content-length")) > 2_000_000) {
++      return NextResponse.json({ error: "檔案分段大小不符" }, { status: 413 });
++    }
+@@ -76 +255,3 @@
+-    if (binary.byteLength > 2_000_000) return NextResponse.json({ error: "檔案分段大小不符" }, { status: 413 });
++    if (binary.byteLength > 2_000_000) {
++      return NextResponse.json({ error: "檔案分段大小不符" }, { status: 413 });
++    }
+@@ -79 +260,3 @@
+-    if (size > 51_000_000) return NextResponse.json({ error: "來源檔案不可超過 50 MB" }, { status: 413 });
++    if (size > 51_000_000) {
++      return NextResponse.json({ error: "來源檔案不可超過 50 MB" }, { status: 413 });
++    }
+@@ -82,2 +265,7 @@
+-    if (!(file instanceof Blob) && typeof form.get("object_name") !== "string" && typeof form.get("staged_digest") !== "string") return NextResponse.json({ error: "缺少來源檔案" }, { status: 422 });
+-    if (file instanceof Blob && file.size > (path === "imports" && process.env.VERCEL !== "1" ? 50_000_000 : 4_000_000)) return NextResponse.json({ error: "大於 4 MB 請使用檔案直傳" }, { status: 413 });
++    if (!(file instanceof Blob) && typeof form.get("object_name") !== "string" && typeof form.get("staged_digest") !== "string") {
++      return NextResponse.json({ error: "缺少來源檔案" }, { status: 422 });
++    }
++    const maxFileSize = path === "imports" && process.env.VERCEL !== "1" ? 50_000_000 : 4_000_000;
++    if (file instanceof Blob && file.size > maxFileSize) {
++      return NextResponse.json({ error: "大於 4 MB 請使用檔案直傳" }, { status: 413 });
++    }
+@@ -86,3 +274,13 @@
+-    if (Buffer.byteLength(raw) > 2_100_000) return NextResponse.json({ error: "整理稿不可超過 2 MB" }, { status: 413 });
+-    try { body = JSON.parse(raw); } catch { return NextResponse.json({ error: "無效的請求" }, { status: 400 }); }
+-    if (!body || typeof body !== "object" || Array.isArray(body)) return NextResponse.json({ error: "無效的請求" }, { status: 400 });
++    if (Buffer.byteLength(raw) > 2_100_000) {
++      return NextResponse.json({ error: "整理稿不可超過 2 MB" }, { status: 413 });
++    }
++    let parsedJson: unknown;
++    try {
++      parsedJson = JSON.parse(raw);
++    } catch {
++      return NextResponse.json({ error: "無效的請求" }, { status: 400 });
++    }
++    if (!parsedJson || typeof parsedJson !== "object" || Array.isArray(parsedJson)) {
++      return NextResponse.json({ error: "無效的請求" }, { status: 400 });
++    }
++    body = parsedJson as Record<string, unknown>;
+@@ -90 +288,3 @@
+-      if (typeof body.text !== "string") return NextResponse.json({ error: "缺少整理稿文字" }, { status: 400 });
++      if (typeof body.text !== "string") {
++        return NextResponse.json({ error: "缺少整理稿文字" }, { status: 400 });
++      }
+@@ -92 +292,3 @@
+-      if (parsed.draftIssues?.length) return NextResponse.json({ error: "整理稿結構未通過檢查", issues: parsed.draftIssues }, { status: 422 });
++      if (parsed.draftIssues?.length) {
++        return NextResponse.json({ error: "整理稿結構未通過檢查", issues: parsed.draftIssues }, { status: 422 });
++      }
+@@ -95,0 +298 @@
++
+@@ -99,26 +302 @@
+-    const headers = { "Cache-Control": "private, no-store" };
+-    const origin = new URL(request.url);
+-    if (request.headers.get("origin") !== origin.origin) return NextResponse.json({ error: "請從本站操作" }, { status: 403, headers });
+-    const managementKey = savedKey || request.headers.get("X-Knowledge-Admin");
+-    if (!managementKey) return NextResponse.json({ error: "請先管理登入" }, { status: 401, headers });
+-    if (typeof body?.url !== "string" || body.url.length > 2000) return NextResponse.json({ error: "請提供 Google Docs 文件連結" }, { status: 422, headers });
+-    const cloud = process.env.BOARDGAME_RULES_API_URL;
+-    try {
+-      const access = await fetch(new URL(`/api/knowledge/games/${encodeURIComponent(gameId)}/editorial/session`, privateRules), {
+-        cache: "no-store", redirect: "error", signal: AbortSignal.timeout(10000),
+-        headers: { "X-Knowledge-Admin": managementKey, "X-Rules-API-Key": process.env.KNOWLEDGE_PRIVATE_API_KEY || "" },
+-      });
+-      if (access.status === 401 || access.status === 404) return NextResponse.json({ error: "請先管理登入並確認遊戲存在" }, { status: access.status, headers });
+-      if (!access.ok || !cloud) throw new Error("Docs reader unavailable");
+-      const result = await fetch(new URL("/api/internal/editorial/google-doc", cloud), {
+-        method: "POST", cache: "no-store", redirect: "error", signal: AbortSignal.timeout(35000),
+-        headers: { "Content-Type": "application/json", "X-Rules-API-Key": process.env.RULES_API_KEY || "", "X-Docs-Reader-Key": docsReaderKey },
+-        body: JSON.stringify({ url: body.url }),
+-      });
+-      if (result.status === 401 || result.status === 403) throw new Error("Docs reader authorization failed");
+-      const data = await result.json();
+-      if (result.ok && typeof data.text !== "string") throw new Error("Invalid Docs reader response");
+-      return NextResponse.json(result.ok ? { text: data.text } : { error: typeof data.detail === "string" ? data.detail : "無法讀取 Google Docs" }, { status: result.status, headers });
+-    } catch {
+-      return NextResponse.json({ error: "Google Docs 讀取服務暫時無法使用，請稍後重試或貼上文字。" }, { status: 503, headers });
+-    }
++    return handleGoogleDocReader(request, gameId, savedKey, body, privateRules, docsReaderKey);
+@@ -129,3 +307,8 @@
+-  const cloudReview = path === "community/review" && process.env.VERCEL === "1"
+-    && process.env.NEXT_PUBLIC_COMMUNITY_GOOGLE_CLIENT_ID && communitySecret
+-    && privateRules && process.env.BOARDGAME_RULES_API_URL;
++  const cloudReview =
++    path === "community/review" &&
++    process.env.VERCEL === "1" &&
++    process.env.NEXT_PUBLIC_COMMUNITY_GOOGLE_CLIENT_ID &&
++    communitySecret &&
++    privateRules &&
++    process.env.BOARDGAME_RULES_API_URL;
++
+@@ -133,4 +316,2 @@
+-    const url = new URL(request.url);
+-    const headers = { "Cache-Control": "private, no-store" };
+-    if (request.method === "POST" && request.headers.get("origin") !== `${url.protocol}//${request.headers.get("host") || url.host}`) {
+-      return NextResponse.json({ error: "請從本站操作" }, { status: 403, headers });
++    if (request.method === "POST" && !isSameSiteOrigin(request)) {
++      return NextResponse.json({ error: "請從本站操作" }, { status: 403, headers: NO_STORE_HEADERS });
+@@ -139 +320,3 @@
+-    if (!managementKey) return NextResponse.json({ error: "請先管理登入" }, { status: 401, headers });
++    if (!managementKey) {
++      return NextResponse.json({ error: "請先管理登入" }, { status: 401, headers: NO_STORE_HEADERS });
++    }
+@@ -141,6 +324,18 @@
+-      const access = await fetch(new URL(`/api/knowledge/games/${encodeURIComponent(gameId)}/editorial/session`, privateRules), {
+-        cache: "no-store", redirect: "error", signal: AbortSignal.timeout(10000),
+-        headers: { "X-Knowledge-Admin": managementKey, "X-Rules-API-Key": process.env.KNOWLEDGE_PRIVATE_API_KEY || "" },
+-      });
+-      if (access.status === 401 || access.status === 404) return NextResponse.json({ error: "無法驗證社群審核權限" }, { status: access.status, headers });
+-      if (!access.ok || (await access.json()).authenticated !== true) throw new Error("Management service unavailable");
++      const access = await fetch(
++        new URL(`/api/knowledge/games/${encodeURIComponent(gameId)}/editorial/session`, privateRules),
++        {
++          cache: "no-store",
++          redirect: "error",
++          signal: AbortSignal.timeout(10000),
++          headers: {
++            "X-Knowledge-Admin": managementKey,
++            "X-Rules-API-Key": process.env.KNOWLEDGE_PRIVATE_API_KEY || "",
++          },
++        }
++      );
++      if (access.status === 401 || access.status === 404) {
++        return NextResponse.json({ error: "無法驗證社群審核權限" }, { status: access.status, headers: NO_STORE_HEADERS });
++      }
++      if (!access.ok || (await access.json()).authenticated !== true) {
++        throw new Error("Management service unavailable");
++      }
+@@ -149 +344,3 @@
+-      communityHeaders["X-Community-Moderation"] = createHmac("sha256", communitySecret).update(`community-review\n${timestamp}\n${request.method}\n${gameId}`).digest("hex");
++      communityHeaders["X-Community-Moderation"] = createHmac("sha256", communitySecret)
++        .update(`community-review\n${timestamp}\n${request.method}\n${gameId}`)
++        .digest("hex");
+@@ -151 +348 @@
+-      return NextResponse.json({ error: "暫時無法驗證社群審核權限" }, { status: 503, headers });
++      return NextResponse.json({ error: "暫時無法驗證社群審核權限" }, { status: 503, headers: NO_STORE_HEADERS });
+@@ -155 +352,6 @@
+-    const ip = process.env.VERCEL === "1" ? request.headers.get("x-vercel-forwarded-for")?.trim() : process.env.NODE_ENV === "development" ? "127.0.0.1" : undefined;
++    const ip =
++      process.env.VERCEL === "1"
++        ? request.headers.get("x-vercel-forwarded-for")?.trim()
++        : process.env.NODE_ENV === "development"
++          ? "127.0.0.1"
++          : undefined;
+@@ -157 +359,3 @@
+-    if (!ip || !isIP(ip) || !secret) return NextResponse.json({ error: "社群連線驗證尚未設定" }, { status: 503 });
++    if (!ip || !isIP(ip) || !secret) {
++      return NextResponse.json({ error: "社群連線驗證尚未設定" }, { status: 503 });
++    }
+@@ -161,2 +365,5 @@
+-    communityHeaders["X-Community-Signature"] = createHmac("sha256", secret).update(`${timestamp}\n${ip}`).digest("hex");
+-  }
++    communityHeaders["X-Community-Signature"] = createHmac("sha256", secret)
++      .update(`${timestamp}\n${ip}`)
++      .digest("hex");
++  }
++
+@@ -165,5 +372 @@
+-    const publicRead = url.searchParams.get("public") === "1" && (
+-      (request.method === "GET" && (!path || path === "pending" || path.startsWith("visuals/") || path === "community"))
+-      || (request.method === "POST" && (path === "ask" || /^community\/(contributions|comments|reports)$/.test(path)))
+-      || (request.method === "PUT" && /^community\/contributions\/[a-f0-9]{32}\/vote$/.test(path))
+-    );
++    const publicRead = isPublicReadAction(request.method, path, url.searchParams);
+@@ -173,5 +376,79 @@
+-    const localPreview = process.env.VERCEL !== "1" && /^imports\/[a-f0-9]{32}\/ask$/.test(path) && ["localhost", "127.0.0.1"].includes(new URL((process.env.KNOWLEDGE_PRIVATE_API_URL || process.env.BOARDGAME_RULES_API_URL) || "http://localhost:8000").hostname);
+-    const response = await fetch(`${upstream}/api/knowledge/games/${encodeURIComponent(gameId)}/editorial${path ? `/${path}` : ""}${url.search}`, {
+-      method: request.method, cache: "no-store", signal: AbortSignal.timeout(localPreview ? 180000 : 45000),
+-      headers: { ...(!form ? { "Content-Type": binary ? "application/octet-stream" : "application/json" } : {}), "X-Rules-API-Key": (privateUpstream ? process.env.KNOWLEDGE_PRIVATE_API_KEY : process.env.RULES_API_KEY) || "", "X-Knowledge-Admin": publicRead || cloudReview ? "" : savedKey || request.headers.get("X-Knowledge-Admin") || "", "Authorization": request.headers.get("Authorization") || "", ...communityHeaders },
+-      ...(binary ? { body: binary } : form ? { body: form } : body ? { body: JSON.stringify(body) } : {}),
++    const configuredUpstreamHost = new URL(
++      (process.env.KNOWLEDGE_PRIVATE_API_URL || process.env.BOARDGAME_RULES_API_URL) || "http://localhost:8000"
++    ).hostname;
++    const localPreview =
++      process.env.VERCEL !== "1" &&
++      /^imports\/[a-f0-9]{32}\/ask$/.test(path) &&
++      ["localhost", "127.0.0.1"].includes(configuredUpstreamHost);
++
++    const response = await fetch(
++      `${upstream}/api/knowledge/games/${encodeURIComponent(gameId)}/editorial${path ? `/${path}` : ""}${url.search}`,
++      {
++        method: request.method,
++        cache: "no-store",
++        signal: AbortSignal.timeout(localPreview ? 180000 : 45000),
++        headers: {
++          ...(!form ? { "Content-Type": binary ? "application/octet-stream" : "application/json" } : {}),
++          "X-Rules-API-Key": (privateUpstream ? process.env.KNOWLEDGE_PRIVATE_API_KEY : process.env.RULES_API_KEY) || "",
++          "X-Knowledge-Admin": publicRead || cloudReview ? "" : savedKey || request.headers.get("X-Knowledge-Admin") || "",
++          Authorization: request.headers.get("Authorization") || "",
++          ...communityHeaders,
++        },
++        ...(binary ? { body: binary } : form ? { body: form } : body ? { body: JSON.stringify(body) } : {}),
++      }
++    );
++
++    if (response.ok && path === "visuals/export" && response.headers.get("content-type")?.includes("application/zip")) {
++      return new Response(response.body, {
++        headers: {
++          "Content-Type": "application/zip",
++          "Cache-Control": "private, no-store",
++          "Content-Disposition": 'attachment; filename="rules-v2.zip"',
++        },
++      });
++    }
++    if (response.ok && isPngStreamAction(request.method, path)) {
++      return new Response(response.body, {
++        headers: {
++          "Content-Type": "image/png",
++          "Cache-Control": "private, no-store",
++          "X-Content-Type-Options": "nosniff",
++        },
++      });
++    }
++    if (response.ok && isPdfSourceAction(request.method, path)) {
++      const disposition = new URL(request.url).searchParams.get("inline") === "1" ? "inline" : "attachment";
++      return new Response(response.body, {
++        headers: {
++          "Content-Type": "application/pdf",
++          "Cache-Control": "private, no-store",
++          "Content-Disposition": `${disposition}; filename="rules-source.pdf"`,
++          "X-Content-Type-Options": "nosniff",
++        },
++      });
++    }
++    if (
++      path === "visuals/upload-url" &&
++      response.status === 503 &&
++      (process.env.VERCEL === "1" || process.env.KNOWLEDGE_STAGED_UPLOAD === "1")
++    ) {
++      return NextResponse.json(
++        {
++          error: "大檔案直傳未啟用。請使用不超過 4 MB 的來源檔案。",
++          code: process.env.KNOWLEDGE_STAGED_UPLOAD === "1" && privateUpstream ? "staged_upload_available" : "direct_upload_unavailable",
++        },
++        { status: 503, headers: NO_STORE_HEADERS }
++      );
++    }
++    const data = await response.json();
++    const errorPayload = {
++      error: typeof data.detail === "string" ? data.detail : data.detail?.message || "整理稿服務操作失敗",
++      code: data.detail?.code,
++      issues: data.detail?.issues,
++    };
++    return NextResponse.json(response.ok ? data : errorPayload, {
++      status: response.status,
++      headers: {
++        ...NO_STORE_HEADERS,
++        ...(response.headers.has("Retry-After") ? { "Retry-After": response.headers.get("Retry-After")! } : {}),
++      },
+@@ -179,9 +456,6 @@
+-    if (response.ok && path === "visuals/export" && response.headers.get("content-type")?.includes("application/zip")) return new Response(response.body, { headers: { "Content-Type": "application/zip", "Cache-Control": "private, no-store", "Content-Disposition": 'attachment; filename="rules-v2.zip"' } });
+-    if (response.ok && (path.startsWith("visuals/") || /^imports\/[a-f0-9]{32}\/pages\/[1-9][0-9]*\/(?:blocks\/[1-9][0-9]*\/)?image$/.test(path)) && request.method === "GET") return new Response(response.body, { headers: { "Content-Type": "image/png", "Cache-Control": "private, no-store", "X-Content-Type-Options": "nosniff" } });
+-    if (response.ok && /^imports\/[a-f0-9]{32}\/source$/.test(path) && request.method === "GET") return new Response(response.body, { headers: { "Content-Type": "application/pdf", "Cache-Control": "private, no-store", "Content-Disposition": `${new URL(request.url).searchParams.get("inline") === "1" ? "inline" : "attachment"}; filename="rules-source.pdf"`, "X-Content-Type-Options": "nosniff" } });
+-    if (path === "visuals/upload-url" && response.status === 503 && (process.env.VERCEL === "1" || process.env.KNOWLEDGE_STAGED_UPLOAD === "1")) {
+-      return NextResponse.json({ error: "大檔案直傳未啟用。請使用不超過 4 MB 的來源檔案。", code: process.env.KNOWLEDGE_STAGED_UPLOAD === "1" && privateUpstream ? "staged_upload_available" : "direct_upload_unavailable" }, { status: 503, headers: { "Cache-Control": "private, no-store" } });
+-    }
+-    const data = await response.json();
+-    return NextResponse.json(response.ok ? data : { error: typeof data.detail === "string" ? data.detail : data.detail?.message || "整理稿服務操作失敗", code: data.detail?.code, issues: data.detail?.issues }, { status: response.status, headers: { "Cache-Control": "private, no-store", ...(response.headers.has("Retry-After") ? { "Retry-After": response.headers.get("Retry-After")! } : {}) } });
+-  } catch { return NextResponse.json({ error: "暫時無法連線至整理稿服務，請稍後重試；文字仍保留在此頁", code: "upstream_unavailable" }, { status: 502 }); }
++  } catch {
++    return NextResponse.json(
++      { error: "暫時無法連線至整理稿服務，請稍後重試；文字仍保留在此頁", code: "upstream_unavailable" },
++      { status: 502 }
++    );
++  }
+@@ -188,0 +463 @@
++
+@@ -192 +466,0 @@
+-
+--- a/src/app/api/rules/knowledge/games/[gameId]/rulebooks/import/route.ts
++++ b/src/app/api/rules/knowledge/games/[gameId]/rulebooks/import/route.ts
+@@ -2,3 +2,2 @@
+-
+-const RULES_API_URL = process.env.BOARDGAME_RULES_API_URL || "http://localhost:8000";
+-const RULES_API_KEY = process.env.RULES_API_KEY;
++import { verifyKnowledgeAdminMutation, verifyKnowledgeAdminUpstream } from "@/lib/editorial-proxy-routes";
++import { sessionKey } from "@/lib/editorial-session";
+@@ -7,0 +7,4 @@
++  const auth = verifyKnowledgeAdminMutation(request, sessionKey(request));
++  if (!auth.ok) {
++    return NextResponse.json({ error: auth.error }, { status: auth.status, headers: { "Cache-Control": "private, no-store" } });
++  }
+@@ -8,0 +12,4 @@
++  const upstreamAuth = await verifyKnowledgeAdminUpstream(gameId, auth.adminKey, "rulebooks/import");
++  if (!upstreamAuth.ok) {
++    return NextResponse.json({ error: upstreamAuth.error }, { status: upstreamAuth.status, headers: { "Cache-Control": "private, no-store" } });
++  }
+@@ -10,0 +18,2 @@
++  const rulesApiUrl = process.env.BOARDGAME_RULES_API_URL || "http://localhost:8000";
++  const rulesApiKey = process.env.RULES_API_KEY;
+@@ -12,2 +21,2 @@
+-    const response = await fetch(`${RULES_API_URL}/api/knowledge/games/${encodeURIComponent(gameId)}/rulebooks/import`, {
+-      method: "POST", headers: { Accept: "application/json", "Content-Type": "application/json", ...(RULES_API_KEY ? { "X-Rules-API-Key": RULES_API_KEY } : {}) }, body: JSON.stringify(body), cache: "no-store",
++    const response = await fetch(`${rulesApiUrl}/api/knowledge/games/${encodeURIComponent(gameId)}/rulebooks/import`, {
++      method: "POST", headers: { Accept: "application/json", "Content-Type": "application/json", ...upstreamAuth.forwardedHeaders, ...(rulesApiKey ? { "X-Rules-API-Key": rulesApiKey } : {}) }, body: JSON.stringify(body), cache: "no-store",
+--- a/src/app/api/rules/knowledge/games/[gameId]/rulebooks/route.ts
++++ b/src/app/api/rules/knowledge/games/[gameId]/rulebooks/route.ts
+@@ -2,3 +2,2 @@
+-
+-const RULES_API_URL = process.env.BOARDGAME_RULES_API_URL || "http://localhost:8000";
+-const RULES_API_KEY = process.env.RULES_API_KEY;
++import { verifyKnowledgeAdminMutation, verifyKnowledgeAdminUpstream } from "@/lib/editorial-proxy-routes";
++import { sessionKey } from "@/lib/editorial-session";
+@@ -9,0 +9,4 @@
++  const auth = verifyKnowledgeAdminMutation(request, sessionKey(request));
++  if (!auth.ok) {
++    return NextResponse.json({ error: auth.error }, { status: auth.status, headers: { "Cache-Control": "private, no-store" } });
++  }
+@@ -10,0 +14,4 @@
++  const upstreamAuth = await verifyKnowledgeAdminUpstream(gameId, auth.adminKey, "rulebooks");
++  if (!upstreamAuth.ok) {
++    return NextResponse.json({ error: upstreamAuth.error }, { status: upstreamAuth.status, headers: { "Cache-Control": "private, no-store" } });
++  }
+@@ -24,0 +32,2 @@
++  const rulesApiUrl = process.env.BOARDGAME_RULES_API_URL || "http://localhost:8000";
++  const rulesApiKey = process.env.RULES_API_KEY;
+@@ -27 +36 @@
+-      `${RULES_API_URL}/api/knowledge/games/${encodeURIComponent(gameId)}/rulebooks`,
++      `${rulesApiUrl}/api/knowledge/games/${encodeURIComponent(gameId)}/rulebooks`,
+@@ -32 +41,2 @@
+-          ...(RULES_API_KEY ? { "X-Rules-API-Key": RULES_API_KEY } : {}),
++          ...upstreamAuth.forwardedHeaders,
++          ...(rulesApiKey ? { "X-Rules-API-Key": rulesApiKey } : {}),
+--- a/src/app/api/rules/knowledge/games/[gameId]/rulebooks/upload-url/route.ts
++++ b/src/app/api/rules/knowledge/games/[gameId]/rulebooks/upload-url/route.ts
+@@ -2,3 +2,2 @@
+-
+-const RULES_API_URL = process.env.BOARDGAME_RULES_API_URL || "http://localhost:8000";
+-const RULES_API_KEY = process.env.RULES_API_KEY;
++import { verifyKnowledgeAdminMutation, verifyKnowledgeAdminUpstream } from "@/lib/editorial-proxy-routes";
++import { sessionKey } from "@/lib/editorial-session";
+@@ -6,0 +6,4 @@
++  const auth = verifyKnowledgeAdminMutation(request, sessionKey(request));
++  if (!auth.ok) {
++    return NextResponse.json({ error: auth.error }, { status: auth.status, headers: { "Cache-Control": "private, no-store" } });
++  }
+@@ -7,0 +11,4 @@
++  const upstreamAuth = await verifyKnowledgeAdminUpstream(gameId, auth.adminKey, "rulebooks/upload-url");
++  if (!upstreamAuth.ok) {
++    return NextResponse.json({ error: upstreamAuth.error }, { status: upstreamAuth.status, headers: { "Cache-Control": "private, no-store" } });
++  }
+@@ -9,0 +17,2 @@
++  const rulesApiUrl = process.env.BOARDGAME_RULES_API_URL || "http://localhost:8000";
++  const rulesApiKey = process.env.RULES_API_KEY;
+@@ -11,2 +20,2 @@
+-    const response = await fetch(`${RULES_API_URL}/api/knowledge/games/${encodeURIComponent(gameId)}/rulebooks/upload-url`, {
+-      method: "POST", headers: { Accept: "application/json", "Content-Type": "application/json", ...(RULES_API_KEY ? { "X-Rules-API-Key": RULES_API_KEY } : {}) }, body: JSON.stringify({ filename: body.filename }), cache: "no-store",
++    const response = await fetch(`${rulesApiUrl}/api/knowledge/games/${encodeURIComponent(gameId)}/rulebooks/upload-url`, {
++      method: "POST", headers: { Accept: "application/json", "Content-Type": "application/json", ...upstreamAuth.forwardedHeaders, ...(rulesApiKey ? { "X-Rules-API-Key": rulesApiKey } : {}) }, body: JSON.stringify({ filename: body.filename }), cache: "no-store",
+--- a/src/app/api/rules/knowledge/games/route.ts
++++ b/src/app/api/rules/knowledge/games/route.ts
+@@ -1,0 +2 @@
++import { verifyKnowledgeAdminMutation } from "@/lib/editorial-proxy-routes";
+@@ -17,2 +18,2 @@
+-export async function GET(request?: Request) {
+-  const publicList = request && new URL(request.url).searchParams.get("public") === "1";
++export async function GET(request: Request) {
++  const publicList = new URL(request.url).searchParams.get("public") === "1";
+@@ -44,0 +46,4 @@
++  const auth = verifyKnowledgeAdminMutation(request, sessionKey(request));
++  if (!auth.ok) {
++    return NextResponse.json({ error: auth.error }, { status: auth.status, headers: { "Cache-Control": "private, no-store" } });
++  }
+@@ -54 +59 @@
+-      headers: rulesHeaders({ Accept: "application/json", "Content-Type": "application/json", "X-Knowledge-Admin": sessionKey(request) }),
++      headers: rulesHeaders({ Accept: "application/json", "Content-Type": "application/json", "X-Knowledge-Admin": auth.adminKey }),
+--- a/src/app/knowledge/[gameId]/reader/PublishedRules.tsx
++++ b/src/app/knowledge/[gameId]/reader/PublishedRules.tsx
+@@ -9,0 +10 @@
++import { hasFullRulesQueryParams, resolveInitialPendingId, reconcileRestoredLocationSearch } from "@/lib/editorial-reader";
+@@ -58,13 +59,4 @@
+-          const url = new URL(window.location.href);
+-          const explicit = [...url.searchParams.keys()].some(key => key !== "library");
+-          if (typeof saved?.search === "string" && Number.isFinite(saved.y) && saved.y >= 0) {
+-            const params = new URLSearchParams(saved.search);
+-            params.delete("library");
+-            const current = new URLSearchParams(url.search); current.delete("library");
+-            params.sort(); current.sort();
+-            if (!explicit || params.toString() === current.toString()) {
+-              if (url.searchParams.has("library")) params.set("library", url.searchParams.get("library")!);
+-              url.search = params.toString();
+-              window.history.replaceState(window.history.state, "", url);
+-              restoreY.current = saved.y;
+-            }
++          const reconciled = reconcileRestoredLocationSearch(window.location.href, saved);
++          if (reconciled) {
++            window.history.replaceState(window.history.state, "", reconciled.updatedUrl);
++            restoreY.current = reconciled.restoredY;
+@@ -73,4 +65,2 @@
+-          const candidates = data.pending_versions || [];
+-          const requested = current.get("pending") || "";
+-          setPendingId(view !== "questions" && candidates.some((item: { id: string }) => item.id === requested) ? requested : !data.document && view !== "questions" ? candidates[0]?.id || "" : "");
+-          setFullRulesOpen(["q", "block", "category", "topic", "source", "page", "flow", "node"].some(key => current.has(key)));
++          setPendingId(resolveInitialPendingId(view, Boolean(data.document), data.pending_versions, current.get("pending") || ""));
++          setFullRulesOpen(hasFullRulesQueryParams(current));
+--- a/src/app/picks/page.tsx
++++ b/src/app/picks/page.tsx
+@@ -54,0 +55 @@
++                  // eslint-disable-next-line @next/next/no-img-element
+@@ -57,0 +59,2 @@
++                    loading='lazy'
++                    decoding='async'
+@@ -177,3 +180 @@
+-  searchParams?:
+-    | Promise<Record<string, string | string[] | undefined>>
+-    | Record<string, string | string[] | undefined>;
++  searchParams?: Promise<Record<string, string | string[] | undefined>>;
+--- a/src/components/PlayRecordModal.tsx
++++ b/src/components/PlayRecordModal.tsx
+@@ -62,0 +63,47 @@
++  };
++}
++
++export interface ParsedScoreSegment {
++  raw: string;
++  playerName: string;
++  score: number | null;
++  markedWinner: boolean;
++}
++
++/**
++ * Parses both comma-separated ("小林: 75, 小陳: 118 👑", including player names with commas like "Chen, Yu: 118 👑, Lin: 75")
++ * and newline-separated score strings.
++ */
++export function parsePlayScoreSegments(text: string): ParsedScoreSegment[] {
++  if (!text || !text.trim()) return [];
++  return text
++    .split(/\r?\n|(?<=[:：]\s*-?\d+(?:\.\d+)?(?:\s*👑)?)\s*[,，]\s*/)
++    .map((segment) => segment.trim())
++    .filter(Boolean)
++    .map((raw) => {
++      const markedWinner = raw.includes("👑");
++      const cleaned = raw.replace(/👑/g, "").trim();
++      const match = cleaned.match(/^(.+?)[:：]\s*(-?\d+(?:\.\d+)?)$/);
++      if (!match) {
++        return { raw: cleaned, playerName: cleaned, score: null, markedWinner };
++      }
++      return {
++        raw: cleaned,
++        playerName: match[1].trim(),
++        score: Number(match[2]),
++        markedWinner,
++      };
++    });
++}
++
++export function getPlayWinnerInfo(play: PlayRecord): { winners: string[]; maxScore: number } | null {
++  const segments = parsePlayScoreSegments(play.scores).filter(
++    (seg): seg is ParsedScoreSegment & { score: number } => seg.score !== null && Number.isFinite(seg.score)
++  );
++  if (segments.length === 0) return null;
++  const maxScore = Math.max(...segments.map((s) => s.score));
++  const explicitWinners = segments.filter((s) => s.markedWinner).map((s) => s.playerName);
++  const scoreWinners = segments.filter((s) => s.score === maxScore).map((s) => s.playerName);
++  return {
++    winners: explicitWinners.length > 0 ? explicitWinners : scoreWinners,
++    maxScore,
+@@ -84,0 +132 @@
++  const [submitError, setSubmitError] = useState("");
+@@ -149,0 +198 @@
++      setSubmitError("");
+@@ -153,27 +202,8 @@
+-  const parseScore = (text: string) => {
+-    const lines = text.split("\n");
+-    const playerScoresMap: Record<string, number> = {};
+-    lines.forEach((line) => {
+-      const match = line.match(/[:：]\s*(\d+)/);
+-      if (match) {
+-        const score = parseInt(match[1]);
+-        playerScoresMap[line] = score;
+-      }
+-    });
+-    return playerScoresMap;
+-  };
+-
+-  const getWinnerInfo = (play: PlayRecord) => {
+-    const parsed = parseScore(play.scores);
+-    const entries = Object.entries(parsed);
+-    if (entries.length === 0) return null;
+-    let maxScore = -1;
+-    let winner = "";
+-    entries.forEach(([name, score]) => {
+-      if (score > maxScore) {
+-        maxScore = score;
+-        winner = name;
+-      }
+-    });
+-    return { winner, maxScore };
+-  };
++  useEffect(() => {
++    if (!open) return;
++    const onKeyDown = (event: KeyboardEvent) => {
++      if (event.key === "Escape") onClose();
++    };
++    window.addEventListener("keydown", onKeyDown);
++    return () => window.removeEventListener("keydown", onKeyDown);
++  }, [open, onClose]);
+@@ -182 +212 @@
+-    let max = -1;
++    let max = Number.NEGATIVE_INFINITY;
+@@ -185 +215 @@
+-      const info = getWinnerInfo(p);
++      const info = getPlayWinnerInfo(p);
+@@ -223 +253,6 @@
+-    if (recordForm.playerScores.length === 0) return;
++    setSubmitError("");
++    const validScores = recordForm.playerScores.filter((entry) => entry.playerId.trim().length > 0);
++    if (validScores.length === 0) {
++      setSubmitError("請至少選擇一位參與玩家。");
++      return;
++    }
+@@ -226 +261 @@
+-      const playerScores = recordForm.playerScores.map((entry) => ({
++      const playerScores = validScores.map((entry) => ({
+@@ -235,0 +271 @@
++        location: recordForm.location.trim() || "未註明",
+@@ -239 +274,0 @@
+-      if (recordForm.location) payload.location = recordForm.location;
+@@ -253,0 +289 @@
++        setSubmitError("");
+@@ -256,3 +292,6 @@
+-        const errText = await res.text();
+-        console.error("Submit failed:", errText);
+-        alert(`提交失敗: ${errText}`);
++        const errData = await res.json().catch(() => null);
++        const msg =
++          typeof errData?.error === "string"
++            ? errData.error
++            : "無法儲存遊玩紀錄，請確認欄位與管理員權限後重試。";
++        setSubmitError(msg);
+@@ -259,0 +299,2 @@
++    } catch {
++      setSubmitError("無法儲存遊玩紀錄，請檢查網路連線後重試。");
+@@ -392 +433,2 @@
+-                            const winner = getWinnerInfo(play);
++                            const winner = getPlayWinnerInfo(play);
++                            const segments = parsePlayScoreSegments(play.scores);
+@@ -406,27 +448,19 @@
+-                                  {play.scores
+-                                    .split(",")
+-                                    .map((s, i) => {
+-                                      const isWinner =
+-                                        winner &&
+-                                        s.includes(":") &&
+-                                        winner.winner.includes(
+-                                          s.split(":")[0]
+-                                        );
+-                                      return (
+-                                        <span
+-                                          key={i}
+-                                          className={
+-                                            isWinner
+-                                              ? "text-yellow-600 font-bold"
+-                                              : "text-gray-700"
+-                                          }
+-                                        >
+-                                          {s.trim()}
+-                                          {isWinner ? " 👑" : ""}
+-                                          {i <
+-                                          play.scores.split(",").length - 1
+-                                            ? ", "
+-                                            : ""}
+-                                        </span>
+-                                      );
+-                                    })}
++                                  {segments.map((seg, i) => {
++                                    const isWinner =
++                                      seg.markedWinner ||
++                                      Boolean(winner && winner.winners.includes(seg.playerName));
++                                    return (
++                                      <span
++                                        key={i}
++                                        className={
++                                          isWinner
++                                            ? "text-yellow-600 font-bold"
++                                            : "text-gray-700"
++                                        }
++                                      >
++                                        {seg.raw}
++                                        {isWinner ? " 👑" : ""}
++                                        {i < segments.length - 1 ? ", " : ""}
++                                      </span>
++                                    );
++                                  })}
+@@ -776,0 +811,6 @@
++
++                  {submitError && (
++                    <p role="alert" className="rounded-lg border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-700">
++                      {submitError}
++                    </p>
++                  )}
+--- /dev/null
++++ b/src/lib/editorial-proxy-routes.ts
+@@ -0,0 +1,182 @@
++/**
++ * Structured route matchers and security helpers for the editorial API proxy.
++ * Replaces the single 460-character compressed regex with readable, testable predicates.
++ */
++import { createHmac } from "node:crypto";
++
++const GET_IMPORT_SUBPATHS = [
++  /^imports$/,
++  /^imports\/[a-f0-9]{32}\/(?:draft|source|document|context|locations|quality|feedback|answers|questions)$/,
++  /^imports\/[a-f0-9]{32}\/questions\/[a-f0-9]{64}$/,
++  /^imports\/[a-f0-9]{32}\/pages\/[1-9][0-9]*\/image$/,
++  /^imports\/[a-f0-9]{32}\/pages\/[1-9][0-9]*\/blocks\/[1-9][0-9]*\/image$/,
++];
++
++const GET_EDITORIAL_SUBPATHS = [
++  /^$/,
++  /^gemini-usage$/,
++  /^deepseek-usage$/,
++  /^history$/,
++  /^pending$/,
++  /^review\/[a-f0-9]{64}$/,
++  /^versions\/[a-f0-9]{64}$/,
++  /^visuals\/[a-f0-9]{64}$/,
++  /^community$/,
++  /^community\/review$/,
++];
++
++const PUT_SUBPATHS = [
++  /^imports\/staged\/[a-f0-9]{64}\/[0-9]{1,2}$/,
++  /^community\/contributions\/[a-f0-9]{32}\/vote$/,
++];
++
++const POST_IMPORT_SUBPATHS = [
++  /^imports$/,
++  /^imports\/[a-f0-9]{32}\/(?:resume|retry|document|context|ask|feedback|repair|questions)$/,
++  /^imports\/[a-f0-9]{32}\/questions\/[a-f0-9]{64}\/cancel$/,
++];
++
++const POST_EDITORIAL_SUBPATHS = [
++  /^drafts$/,
++  /^submit$/,
++  /^review$/,
++  /^publish$/,
++  /^google-doc$/,
++  /^ask$/,
++  /^visuals\/(?:crop|upload-url|export)$/,
++  /^community\/(?:contributions|comments|reports|review)$/,
++];
++
++export function isAllowedEditorialAction(method: string, path: string): boolean {
++  if (method === "GET") {
++    return (
++      GET_EDITORIAL_SUBPATHS.some((pattern) => pattern.test(path)) ||
++      GET_IMPORT_SUBPATHS.some((pattern) => pattern.test(path))
++    );
++  }
++  if (method === "PUT") {
++    return PUT_SUBPATHS.some((pattern) => pattern.test(path));
++  }
++  if (method === "POST") {
++    return (
++      POST_EDITORIAL_SUBPATHS.some((pattern) => pattern.test(path)) ||
++      POST_IMPORT_SUBPATHS.some((pattern) => pattern.test(path))
++    );
++  }
++  return false;
++}
++
++export function isPublicReadAction(method: string, path: string, searchParams: URLSearchParams): boolean {
++  if (searchParams.get("public") !== "1") return false;
++  if (method === "GET") {
++    return !path || path === "pending" || path.startsWith("visuals/") || path === "community";
++  }
++  if (method === "POST") {
++    return path === "ask" || /^community\/(?:contributions|comments|reports)$/.test(path);
++  }
++  if (method === "PUT") {
++    return /^community\/contributions\/[a-f0-9]{32}\/vote$/.test(path);
++  }
++  return false;
++}
++
++export function isPngStreamAction(method: string, path: string): boolean {
++  if (method !== "GET") return false;
++  if (path.startsWith("visuals/")) return true;
++  return (
++    /^imports\/[a-f0-9]{32}\/pages\/[1-9][0-9]*\/image$/.test(path) ||
++    /^imports\/[a-f0-9]{32}\/pages\/[1-9][0-9]*\/blocks\/[1-9][0-9]*\/image$/.test(path)
++  );
++}
++
++export function isPdfSourceAction(method: string, path: string): boolean {
++  return method === "GET" && /^imports\/[a-f0-9]{32}\/source$/.test(path);
++}
++
++export function isSameSiteOrigin(request: Request): boolean {
++  const url = new URL(request.url);
++  const expectedOrigin = `${url.protocol}//${request.headers.get("host") || url.host}`;
++  return request.headers.get("origin") === expectedOrigin;
++}
++
++/**
++ * Verifies management authorization for knowledge base mutation routes.
++ * - Cookie-authenticated browser writes MUST carry a matching same-site Origin header (403 if missing or mismatched).
++ * - Direct header-authenticated requests carrying a mismatched Origin header are also rejected with 403.
++ * - Unauthenticated requests (missing both session cookie and X-Knowledge-Admin header) are rejected with 401.
++ * - When a direct X-Knowledge-Admin header is supplied without a pre-verified local session cookie,
++ *   or when KNOWLEDGE_PRIVATE_API_URL is configured separately from BOARDGAME_RULES_API_URL,
++ *    verifyKnowledgeAdminUpstream() validates the credential against the authoritative editorial service before forwarding.
++ */
++export function verifyKnowledgeAdminMutation(
++  request: Request,
++  resolvedSessionKey: string
++): { ok: true; adminKey: string; fromSessionCookie: boolean } | { ok: false; status: 401 | 403; error: string } {
++  const origin = request.headers.get("origin");
++  if (resolvedSessionKey) {
++    if (!origin || !isSameSiteOrigin(request)) {
++      return { ok: false, status: 403, error: "請從本站操作" };
++    }
++  } else if (origin && !isSameSiteOrigin(request)) {
++    return { ok: false, status: 403, error: "請從本站操作" };
++  }
++  const adminKey = (resolvedSessionKey || request.headers.get("X-Knowledge-Admin") || "").trim();
++  if (!adminKey || adminKey.length > 1024) {
++    return { ok: false, status: 401, error: "請先管理登入" };
++  }
++  return { ok: true, adminKey, fromSessionCookie: Boolean(resolvedSessionKey) };
++}
++
++export async function verifyKnowledgeAdminUpstream(
++  gameId: string,
++  adminKey: string,
++  action: "rulebooks" | "rulebooks/upload-url" | "rulebooks/import" = "rulebooks"
++): Promise<{ ok: true; forwardedHeaders: Record<string, string> } | { ok: false; status: number; error: string }> {
++  const privateBase = process.env.KNOWLEDGE_PRIVATE_API_URL;
++  const publicBase = process.env.BOARDGAME_RULES_API_URL || "http://localhost:8000";
++  if (!privateBase || new URL(privateBase).origin === new URL(publicBase).origin) {
++    return { ok: true, forwardedHeaders: { "X-Knowledge-Admin": adminKey } };
++  }
++  try {
++    const check = await fetch(
++      new URL(`/api/knowledge/games/${encodeURIComponent(gameId)}/editorial/session`, privateBase),
++      {
++        cache: "no-store",
++        redirect: "error",
++        signal: AbortSignal.timeout(10000),
++        headers: {
++          "X-Knowledge-Admin": adminKey,
++          "X-Rules-API-Key": process.env.KNOWLEDGE_PRIVATE_API_KEY || "",
++        },
++      }
++    );
++    if (check.status === 401 || check.status === 404) {
++      return { ok: false, status: 401, error: "管理登入已失效或密碼不正確" };
++    }
++    if (!check.ok) {
++      return { ok: false, status: 503, error: "無法驗證管理登入" };
++    }
++    const data = await check.json().catch(() => null);
++    if (data?.authenticated !== true) {
++      return { ok: false, status: 401, error: "管理登入已失效或密碼不正確" };
++    }
++    const signingSecret = process.env.KNOWLEDGE_RELEASE_SYNC_KEY || process.env.COMMUNITY_PROXY_SECRET || "";
++    if (signingSecret) {
++      const timestamp = Math.floor(Date.now() / 1000).toString();
++      const signature = createHmac("sha256", signingSecret)
++        .update(`rulebook-admin\n${timestamp}\nPOST\n${gameId}\n${action}`)
++        .digest("hex");
++      return {
++        ok: true,
++        forwardedHeaders: {
++          "X-Knowledge-Admin": "",
++          "X-Knowledge-Admin-Timestamp": timestamp,
++          "X-Knowledge-Admin-Signature": signature,
++        },
++      };
++    }
++    return { ok: true, forwardedHeaders: { "X-Knowledge-Admin": adminKey } };
++  } catch {
++    return { ok: false, status: 503, error: "無法驗證管理登入" };
++  }
++}
+--- a/src/lib/editorial-reader.ts
++++ b/src/lib/editorial-reader.ts
+@@ -40,0 +41,51 @@
++
++export const FULL_RULES_QUERY_KEYS = ["q", "block", "category", "topic", "source", "page", "flow", "node"] as const;
++
++export function hasFullRulesQueryParams(searchParams: URLSearchParams): boolean {
++  return FULL_RULES_QUERY_KEYS.some((key) => searchParams.has(key));
++}
++
++export function resolveInitialPendingId(
++  view: "rules" | "source" | "questions" | "community",
++  hasFormalDocument: boolean,
++  pendingVersions: { id: string; submitted_at: string }[] | undefined,
++  requestedPendingId: string
++): string {
++  if (view === "questions") return "";
++  const candidates = pendingVersions || [];
++  if (requestedPendingId && candidates.some((item) => item.id === requestedPendingId)) {
++    return requestedPendingId;
++  }
++  if (!hasFormalDocument) {
++    return candidates[0]?.id || "";
++  }
++  return "";
++}
++
++export function reconcileRestoredLocationSearch(
++  currentHref: string,
++  savedState: unknown
++): { updatedUrl: URL; restoredY: number } | null {
++  if (!savedState || typeof savedState !== "object") return null;
++  const candidate = savedState as { search?: unknown; y?: unknown };
++  if (typeof candidate.search !== "string" || typeof candidate.y !== "number" || !Number.isFinite(candidate.y) || candidate.y < 0) {
++    return null;
++  }
++  const url = new URL(currentHref);
++  const hasExplicitNonLibraryParams = [...url.searchParams.keys()].some((key) => key !== "library");
++  const savedParams = new URLSearchParams(candidate.search);
++  savedParams.delete("library");
++  const currentParams = new URLSearchParams(url.search);
++  currentParams.delete("library");
++  savedParams.sort();
++  currentParams.sort();
++
++  if (!hasExplicitNonLibraryParams || savedParams.toString() === currentParams.toString()) {
++    if (url.searchParams.has("library")) {
++      savedParams.set("library", url.searchParams.get("library")!);
++    }
++    url.search = savedParams.toString();
++    return { updatedUrl: url, restoredY: candidate.y };
++  }
++  return null;
++}
+--- a/src/lib/notion-cache.ts
++++ b/src/lib/notion-cache.ts
+@@ -2,2 +2,3 @@
+- * Simple in-memory cache with TTL for Notion API responses.
+- * This dramatically speeds up repeated reads of the same data.
++ * In-memory cache with TTL and Stale-While-Revalidate (SWR) support for Notion API responses.
++ * Speeds up repeated reads and eliminates cold-wait latency during background refreshes
++ * while preserving immediate write invalidation and preventing cold/stale race conditions.
+@@ -8 +9,8 @@
+-  expiry: number;
++  freshUntil: number;
++  staleUntil: number;
++  version: number;
++}
++
++export interface CacheOptions {
++  ttlMs?: number;
++  staleTtlMs?: number;
+@@ -12 +20,16 @@
+-const DEFAULT_TTL_MS = 30_000; // 30 seconds
++const inFlightCold = new Map<string, Promise<unknown>>();
++const inFlightRefresh = new Map<string, Promise<unknown>>();
++const keyVersions = new Map<string, number>();
++
++export const DEFAULT_TTL_MS = 30_000; // 30 seconds fresh
++export const DEFAULT_STALE_TTL_MS = 300_000; // 5 minutes stale-while-revalidate window
++
++function getKeyVersion(key: string): number {
++  return keyVersions.get(key) ?? 0;
++}
++
++function bumpKeyVersion(key: string): number {
++  const next = getKeyVersion(key) + 1;
++  keyVersions.set(key, next);
++  return next;
++}
+@@ -17,2 +40,4 @@
+-  if (Date.now() > entry.expiry) {
+-    cache.delete(key);
++  if (Date.now() > entry.freshUntil) {
++    if (Date.now() > entry.staleUntil) {
++      cache.delete(key);
++    }
+@@ -24 +49,10 @@
+-export function setCache<T>(key: string, data: T, ttlMs = DEFAULT_TTL_MS): void {
++export function setCache<T>(
++  key: string,
++  data: T,
++  ttlMs = DEFAULT_TTL_MS,
++  staleTtlMs = Math.max(ttlMs, DEFAULT_STALE_TTL_MS)
++): void {
++  const now = Date.now();
++  const version = bumpKeyVersion(key);
++  inFlightCold.delete(key);
++  inFlightRefresh.delete(key);
+@@ -27 +61,3 @@
+-    expiry: Date.now() + ttlMs,
++    freshUntil: now + ttlMs,
++    staleUntil: now + Math.max(ttlMs, staleTtlMs),
++    version,
+@@ -28,0 +65,63 @@
++}
++
++export async function getOrFetchCached<T>(
++  key: string,
++  fetcher: () => Promise<T>,
++  options?: CacheOptions
++): Promise<T> {
++  const ttlMs = options?.ttlMs ?? DEFAULT_TTL_MS;
++  const staleTtlMs = options?.staleTtlMs ?? Math.max(ttlMs, DEFAULT_STALE_TTL_MS);
++  const now = Date.now();
++  const entry = cache.get(key) as CacheEntry<T> | undefined;
++
++  if (entry) {
++    if (now <= entry.freshUntil) {
++      return entry.data;
++    }
++    if (now <= entry.staleUntil) {
++      // Stale-While-Revalidate: return stale data immediately and trigger a single background refresh
++      if (!inFlightRefresh.has(key)) {
++        const startVersion = getKeyVersion(key);
++        const refreshPromise = fetcher()
++          .then((freshData) => {
++            if (getKeyVersion(key) === startVersion) {
++              setCache(key, freshData, ttlMs, staleTtlMs);
++            }
++            return freshData;
++          })
++          .catch(() => {
++            // Keep existing stale entry if background refresh fails
++          })
++          .finally(() => {
++            if (inFlightRefresh.get(key) === refreshPromise) {
++              inFlightRefresh.delete(key);
++            }
++          });
++        inFlightRefresh.set(key, refreshPromise);
++      }
++      return entry.data;
++    }
++    cache.delete(key);
++  }
++
++  const existingCold = inFlightCold.get(key) as Promise<T> | undefined;
++  if (existingCold) {
++    return existingCold;
++  }
++
++  const startVersion = getKeyVersion(key);
++  const coldPromise = fetcher()
++    .then((data) => {
++      if (getKeyVersion(key) === startVersion) {
++        setCache(key, data, ttlMs, staleTtlMs);
++      }
++      return data;
++    })
++    .finally(() => {
++      if (inFlightCold.get(key) === coldPromise) {
++        inFlightCold.delete(key);
++      }
++    });
++
++  inFlightCold.set(key, coldPromise);
++  return coldPromise;
+@@ -32,0 +132,3 @@
++    for (const key of new Set([...cache.keys(), ...inFlightCold.keys(), ...inFlightRefresh.keys(), ...keyVersions.keys()])) {
++      bumpKeyVersion(key);
++    }
+@@ -33,0 +136,2 @@
++    inFlightCold.clear();
++    inFlightRefresh.clear();
+@@ -35,0 +140 @@
++  const matchingKeys = new Set<string>();
+@@ -37,3 +142,16 @@
+-    if (key.startsWith(keyPrefix)) {
+-      cache.delete(key);
+-    }
++    if (key.startsWith(keyPrefix)) matchingKeys.add(key);
++  }
++  for (const key of inFlightCold.keys()) {
++    if (key.startsWith(keyPrefix)) matchingKeys.add(key);
++  }
++  for (const key of inFlightRefresh.keys()) {
++    if (key.startsWith(keyPrefix)) matchingKeys.add(key);
++  }
++  for (const key of keyVersions.keys()) {
++    if (key.startsWith(keyPrefix)) matchingKeys.add(key);
++  }
++  for (const key of matchingKeys) {
++    bumpKeyVersion(key);
++    cache.delete(key);
++    inFlightCold.delete(key);
++    inFlightRefresh.delete(key);
+--- a/src/lib/notion.ts
++++ b/src/lib/notion.ts
+@@ -4 +4 @@
+-import { getCached, setCache, invalidateCache } from "./notion-cache";
++import { getCached, getOrFetchCached, setCache, invalidateCache } from "./notion-cache";
+@@ -6,0 +7,4 @@
++
++export function setNotionClientForTest(client: Client | null): void {
++  notionClient = client;
++}
+@@ -282 +286 @@
+-  const pages = await queryAllPages(databaseId);
++  const pages = await queryAllPagesCached(databaseId, undefined, CACHE_KEY_PLAYERS);
+@@ -317,0 +322,2 @@
++  invalidateCache(CACHE_KEY_PLAYERS);
++  invalidateCache("meeting-regular-players");
+@@ -328,2 +334,3 @@
+-}
+-
++  invalidateCache(CACHE_KEY_PLAYERS);
++  invalidateCache("meeting-regular-players");
++}
+@@ -489 +496,24 @@
+-  // Check cache first
++  const fetchPages = async () => {
++    const notion = getNotionClient();
++    const results: PageObjectResponse[] = [];
++    let cursor: string | undefined;
++
++    do {
++      const response = await notion.databases.query({
++        database_id: databaseId,
++        start_cursor: cursor,
++        page_size: 100, // Max per page — fewer round trips
++        ...(params ?? {}),
++      });
++
++      for (const page of response.results) {
++        if (page.object !== "page" || !("properties" in page)) continue;
++        results.push(page as PageObjectResponse);
++      }
++
++      cursor = response.has_more ? (response.next_cursor ?? undefined) : undefined;
++    } while (cursor);
++
++    return results;
++  };
++
+@@ -491,30 +521,4 @@
+-    const cached = getCached<PageObjectResponse[]>(cacheKey);
+-    if (cached) return cached;
+-  }
+-
+-  const notion = getNotionClient();
+-  const results: PageObjectResponse[] = [];
+-  let cursor: string | undefined;
+-
+-  do {
+-    const response = await notion.databases.query({
+-      database_id: databaseId,
+-      start_cursor: cursor,
+-      page_size: 100, // Max per page — fewer round trips
+-      ...(params ?? {}),
+-    });
+-
+-    for (const page of response.results) {
+-      if (page.object !== "page" || !("properties" in page)) continue;
+-      results.push(page as PageObjectResponse);
+-    }
+-
+-    cursor = response.has_more ? (response.next_cursor ?? undefined) : undefined;
+-  } while (cursor);
+-
+-  // Store in cache
+-  if (cacheKey) {
+-    setCache(cacheKey, results);
+-  }
+-
+-  return results;
++    return getOrFetchCached(cacheKey, fetchPages);
++  }
++
++  return fetchPages();
+@@ -692,2 +696,3 @@
+-    try { linkedGameId = await resolvePlayGameId(databaseId, gameId); }
+-    catch (error) {
++    try {
++      linkedGameId = await resolvePlayGameId(databaseId, gameId);
++    } catch (error) {
+@@ -697,0 +703 @@
++
+@@ -705 +711,39 @@
+-  const pages = await queryAllPages(databaseId, filter ? { filter } : undefined);
++  const playsCacheKey = linkedGameId
++    ? `${CACHE_KEY_PLAYS}:game:${normalizeNotionId(linkedGameId)}`
++    : CACHE_KEY_PLAYS;
++
++  const playerScoresDbId = process.env.NOTION_PLAYER_SCORES_DB_ID;
++  const playersDbId = process.env.NOTION_PLAYERS_DB_ID;
++
++  // Fetch plays, scores, and players in parallel using SWR cache — zero N+1 queries!
++  const [pages, scorePages, playerPages] = await Promise.all([
++    queryAllPagesCached(databaseId, filter ? { filter } : undefined, playsCacheKey),
++    playerScoresDbId
++      ? queryAllPagesCached(playerScoresDbId, undefined, CACHE_KEY_SCORES)
++      : Promise.resolve([] as PageObjectResponse[]),
++    playersDbId
++      ? queryAllPagesCached(playersDbId, undefined, CACHE_KEY_PLAYERS)
++      : Promise.resolve([] as PageObjectResponse[]),
++  ]);
++
++  if (pages.length === 0) return [];
++
++  const playerNameMap = new Map<string, string>();
++  for (const p of playerPages) {
++    const name = extractPageTitle(p);
++    if (name) {
++      playerNameMap.set(p.id, name);
++      playerNameMap.set(normalizeNotionId(p.id), name);
++    }
++  }
++
++  const scoresByPlayId = new Map<string, PageObjectResponse[]>();
++  for (const sp of scorePages) {
++    const playRelations = extractRelationIds(sp.properties[PLAYER_SCORES_PLAY_PROP]);
++    for (const pid of playRelations) {
++      const normalizedPid = normalizeNotionId(pid);
++      const existing = scoresByPlayId.get(normalizedPid) || [];
++      existing.push(sp);
++      scoresByPlayId.set(normalizedPid, existing);
++    }
++  }
+@@ -708,5 +752,6 @@
+-  const playerCache = new Map<string, Promise<Player>>();
+-
+-  const getPlayerById = (id: string) => {
+-    const cached = playerCache.get(id);
+-    if (cached) return cached;
++  const fallbackPlayerCache = new Map<string, Promise<Player>>();
++  const resolvePlayer = (id: string): Promise<Player> => {
++    const cachedName = playerNameMap.get(id) || playerNameMap.get(normalizeNotionId(id));
++    if (cachedName) return Promise.resolve({ id, name: cachedName });
++    const inFlight = fallbackPlayerCache.get(id);
++    if (inFlight) return inFlight;
+@@ -715,5 +760,7 @@
+-      if (res.object !== "page" || !("properties" in res)) {
+-        return { id, name: "" };
+-      }
+-      const page = res as PageObjectResponse;
+-      return { id: page.id, name: extractPageTitle(page) };
++      if (res.object !== "page" || !("properties" in res)) return { id, name: "" };
++      const name = extractPageTitle(res as PageObjectResponse);
++      if (name) {
++        playerNameMap.set(id, name);
++        playerNameMap.set(normalizeNotionId(id), name);
++      }
++      return { id: res.id, name };
+@@ -721 +768 @@
+-    playerCache.set(id, p);
++    fallbackPlayerCache.set(id, p);
+@@ -728 +774,0 @@
+-
+@@ -731,12 +777 @@
+-
+-      // Get player scores for this play
+-      const playerScoresDbId = process.env.NOTION_PLAYER_SCORES_DB_ID;
+-      const scorePages = playerScoresDbId
+-        ? await notion.databases.query({
+-            database_id: playerScoresDbId,
+-            filter: {
+-              property: PLAYER_SCORES_PLAY_PROP,
+-              relation: { contains: page.id },
+-            },
+-          })
+-        : { results: [] };
++      const relatedScores = scoresByPlayId.get(normalizeNotionId(page.id)) || [];
+@@ -747,3 +782,2 @@
+-      for (const sp of scorePages.results) {
+-        if (!("properties" in sp)) continue;
+-        const spProps = (sp as PageObjectResponse).properties;
++      for (const sp of relatedScores) {
++        const spProps = sp.properties;
+@@ -760,7 +794,9 @@
+-      const players = (await Promise.all(playerIds.map(getPlayerById))).filter(
+-        (p) => Boolean(p.name)
+-      );
+-
+-      const playerNameMap = new Map(players.map((p) => [p.id, p.name]));
+-
+-      // Build score text using resolved player names, not raw page IDs
++      if (playerIds.length === 0) {
++        for (const pid of extractRelationIds(props[PLAYS_PLAYERS_PROP])) {
++          if (!playerIds.includes(pid)) playerIds.push(pid);
++        }
++      }
++
++      const players = (await Promise.all(playerIds.map(resolvePlayer))).filter((p) => Boolean(p.name));
++      const localNameMap = new Map(players.map((p) => [p.id, p.name]));
++
+@@ -769 +805 @@
+-          `${playerNameMap.get(playerId) || "未知"}: ${score}${isWinner ? " 👑" : ""}`
++          `${localNameMap.get(playerId) || playerNameMap.get(normalizeNotionId(playerId)) || "未知"}: ${score}${isWinner ? " 👑" : ""}`
+--- a/src/lib/picks-source.ts
++++ b/src/lib/picks-source.ts
+@@ -1 +1 @@
+-import { BOARDGAME_NEWS_URL, type BoardGameNewsData } from "@/lib/boardgamenews";
++import { BOARDGAME_NEWS_URL, type BoardGameNewsData, type BoardGameNewsEntry } from "@/lib/boardgamenews";
+@@ -4 +4,102 @@
+-const DEFAULT_ALL_GAMES_URL = 'https://drive.google.com/uc?export=download&id=1iDZSWtUakQ9gOkpYnQcWxoJ2lS9aLaFT';
++const DEFAULT_ALL_GAMES_URL = "https://drive.google.com/uc?export=download&id=1iDZSWtUakQ9gOkpYnQcWxoJ2lS9aLaFT";
++const PICKS_FETCH_TIMEOUT_MS = 8_000;
++const ALLOWED_PLAYER_BUCKET_KEYS = new Set(["2", "3", "4", "5", "6"]);
++
++let lastKnownGoodPicks: BoardGameNewsData | null = null;
++
++export function resetPicksCache(): void {
++  lastKnownGoodPicks = null;
++}
++
++function isPlainObject(value: unknown): value is Record<string, unknown> {
++  return typeof value === "object" && value !== null && !Array.isArray(value);
++}
++
++function isFiniteNumber(value: unknown): value is number {
++  return typeof value === "number" && Number.isFinite(value);
++}
++
++function isStringArray(value: unknown): value is string[] {
++  return Array.isArray(value) && value.every((item) => typeof item === "string");
++}
++
++function isNumberArray(value: unknown): value is number[] {
++  return Array.isArray(value) && value.every(isFiniteNumber);
++}
++
++function isValidBoardGameNewsEntry(entry: unknown): entry is BoardGameNewsEntry {
++  if (!isPlainObject(entry)) return false;
++  return (
++    typeof entry.bgg_id === "string" &&
++    entry.bgg_id.trim().length > 0 &&
++    typeof entry.name === "string" &&
++    entry.name.trim().length > 0 &&
++    isFiniteNumber(entry.year) &&
++    typeof entry.image === "string" &&
++    typeof entry.thumbnail === "string" &&
++    isFiniteNumber(entry.min_players) &&
++    isFiniteNumber(entry.max_players) &&
++    isFiniteNumber(entry.play_time) &&
++    isFiniteNumber(entry.min_age) &&
++    isFiniteNumber(entry.weight) &&
++    isFiniteNumber(entry.rating) &&
++    isFiniteNumber(entry.users_rated) &&
++    isFiniteNumber(entry.bgg_rank) &&
++    isStringArray(entry.categories) &&
++    isStringArray(entry.mechanics) &&
++    isStringArray(entry.designers) &&
++    isNumberArray(entry.best_players_summary) &&
++    isNumberArray(entry.best_for)
++  );
++}
++
++export function isValidBoardGameNewsData(data: unknown): data is BoardGameNewsData {
++  if (!isPlainObject(data)) return false;
++  const entries = Object.entries(data);
++  if (entries.length === 0) return false;
++  let hasBucket = false;
++  for (const [key, value] of entries) {
++    if (!ALLOWED_PLAYER_BUCKET_KEYS.has(key)) return false;
++    if (!Array.isArray(value)) return false;
++    if (!value.every(isValidBoardGameNewsEntry)) return false;
++    hasBucket = true;
++  }
++  return hasBucket;
++}
++
++function isValidCloudGameCandidate(entry: unknown): boolean {
++  if (!isPlainObject(entry)) return false;
++  if (typeof entry.name !== "string" || entry.name.trim().length === 0) return false;
++  return (
++    entry.best_players_summary !== undefined ||
++    entry.best_for !== undefined ||
++    entry.bestPlayers !== undefined ||
++    entry.bgg_id !== undefined ||
++    entry.bggId !== undefined ||
++    entry.min_players !== undefined ||
++    entry.minPlayers !== undefined
++  );
++}
++
++export function isValidCloudPicksPayload(payload: unknown): boolean {
++  if (Array.isArray(payload)) {
++    return payload.every(isValidCloudGameCandidate);
++  }
++  if (!isPlainObject(payload)) return false;
++  const entries = Object.entries(payload);
++  if (entries.length === 0) return false;
++
++  if (entries.every(([key, val]) => ALLOWED_PLAYER_BUCKET_KEYS.has(key) && Array.isArray(val))) {
++    return entries.every(([, val]) => (val as unknown[]).every(isValidCloudGameCandidate));
++  }
++
++  for (const containerKey of ["games", "data", "items", "results", "entries"]) {
++    if (containerKey in payload) {
++      const candidate = payload[containerKey];
++      return Array.isArray(candidate) && candidate.every(isValidCloudGameCandidate);
++    }
++  }
++
++  const values = Object.values(payload);
++  return values.length > 0 && values.every(isValidCloudGameCandidate);
++}
+@@ -12,0 +114 @@
++        signal: AbortSignal.timeout(PICKS_FETCH_TIMEOUT_MS),
+@@ -17,5 +119,18 @@
+-        const sections = normalizeCloudGamesToPlayerSections(extractGamesFromPayload(payload));
+-
+-        return Object.fromEntries(
+-          sections.map((section) => [String(section.count), section.games]),
+-        ) as BoardGameNewsData;
++        if (isValidCloudPicksPayload(payload)) {
++          const sections = normalizeCloudGamesToPlayerSections(extractGamesFromPayload(payload));
++          const normalized = Object.fromEntries(
++            sections.map((section) => [String(section.count), section.games]),
++          ) as BoardGameNewsData;
++          if (Object.keys(normalized).length === 0) {
++            normalized["2"] = [];
++            normalized["3"] = [];
++            normalized["4"] = [];
++            normalized["5"] = [];
++            normalized["6"] = [];
++          }
++          if (isValidBoardGameNewsData(normalized)) {
++            lastKnownGoodPicks = normalized;
++            return normalized;
++          }
++        }
++        console.error("Rejected malformed cloud picks payload");
+@@ -24 +139 @@
+-      console.error('Failed to load cloud all_games.json for picks:', error);
++      console.error("Failed to load cloud all_games.json for picks:", error);
+@@ -28,3 +143,5 @@
+-  const res = await fetch(BOARDGAME_NEWS_URL, {
+-    next: { revalidate: 3600 },
+-  });
++  try {
++    const res = await fetch(BOARDGAME_NEWS_URL, {
++      next: { revalidate: 3600 },
++      signal: AbortSignal.timeout(PICKS_FETCH_TIMEOUT_MS),
++    });
+@@ -32,2 +149,10 @@
+-  if (!res.ok) {
+-    throw new Error('無法載入 精選推薦');
++    if (res.ok) {
++      const data = await res.json();
++      if (isValidBoardGameNewsData(data)) {
++        lastKnownGoodPicks = data;
++        return data;
++      }
++      console.error("Rejected malformed BOARDGAME_NEWS_URL picks payload");
++    }
++  } catch (error) {
++    console.error("Failed to load fallback BOARDGAME_NEWS_URL for picks:", error);
+@@ -36 +161,5 @@
+-  return res.json();
++  if (lastKnownGoodPicks) {
++    return lastKnownGoodPicks;
++  }
++
++  throw new Error("無法載入 精選推薦");
+@@ -38 +166,0 @@
+-

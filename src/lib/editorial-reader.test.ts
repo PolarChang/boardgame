@@ -31,10 +31,19 @@ describe("full Hegemony manuscript reader", () => {
     expect(searchEditorial(doc, "完全不存在的規則測試")).toHaveLength(0);
   });
   it("keeps linked FAQ answers and pending status intact", () => {
-    const faq = doc.blocks.find(b => b.kind === "FAQ" && b.fields.引用)!;
-    const related = relatedEntries(doc, faq);
-    expect(related.length).toBeGreaterThan(0);
-    expect(related.every(b => b.fields.狀態 === "待確認")).toBe(true);
+    const confirmedFaq = doc.blocks.find(b => b.id === "FAQ-001")!;
+    expect(confirmedFaq).toBeDefined();
+    expect(confirmedFaq.fields.狀態).toBe("已確認");
+    const confirmedRelated = relatedEntries(doc, confirmedFaq);
+    expect(confirmedRelated.map(b => b.id)).toEqual(["RULE-087"]);
+    expect(confirmedRelated.every(b => b.fields.狀態 === "已確認")).toBe(true);
+
+    const pendingFaq = doc.blocks.find(b => b.id === "FAQ-004")!;
+    expect(pendingFaq).toBeDefined();
+    expect(pendingFaq.fields.狀態).toBe("待確認");
+    const pendingRelated = relatedEntries(doc, pendingFaq);
+    expect(pendingRelated.map(b => b.id)).toEqual(["RULE-088"]);
+    expect(pendingRelated.every(b => b.fields.狀態 === "待確認")).toBe(true);
   });
 });
 it("links only valid PDF page ranges and keeps website links honest", () => {

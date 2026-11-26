@@ -1,0 +1,89 @@
+{
+  "baseDeployment": "dpl_JCdNsa5rvVvt2RYHCWHyf5Tu5X4Y",
+  "productionDeployment": "dpl_CFeZKCRugGXcjTsLtktd2n5d6YPk",
+  "archive": "boardgame-wp-2026-11-26.zip",
+  "archiveSHA256": "fad8d50a2e33e7d31b98f82516912b17f50f2f7c098879d4828e2fbebeeb8255",
+  "verifiedSourceFileCount": 135,
+  "changes": [
+    {
+      "file": "next.config.js",
+      "baseSHA256": "22c0d254f37d9369655d9ea30f983cdfb4f09a3bc1af255f26c8defabbdfc071",
+      "releaseSHA256": "4c12f0b4f50b7b9fcf5f0217e6e2893d3bb8b0b665a52d8057a1a4868a0b2d16"
+    },
+    {
+      "file": "package.json",
+      "baseSHA256": "24bd08cb14e0c716400acb80a7db0df45b52d6356954f51f7ff380e06b2c1033",
+      "releaseSHA256": "211f481fdc106ce20d1e579a29c6a4031d9e996b75ea3298f8b8c3a325b7a929"
+    },
+    {
+      "file": "src/app/api/games/route.ts",
+      "baseSHA256": "6e10aa2be62df062bd7e93caa22c8fd757da375037a808f604d96acbeab27993",
+      "releaseSHA256": "447bc021739f02fcd9c819f07466e18892c4edf18e924d2db940af5d6107bce9"
+    },
+    {
+      "file": "src/app/api/rules/knowledge/games/[gameId]/editorial/[[...action]]/route.ts",
+      "baseSHA256": "22eba6b3a4cbb3fbe5447fa2d29eb759e7dd0165ef3eddbc1f8addfd48925bec",
+      "releaseSHA256": "697fd5391029b235d994af0c68fb274c056f3b91480ef984f72557b2c9db268d"
+    },
+    {
+      "file": "src/app/api/rules/knowledge/games/[gameId]/rulebooks/import/route.ts",
+      "baseSHA256": "615ffa9a99b457e25aa90935060510be73866c67777695b19c60b35160f79ae4",
+      "releaseSHA256": "a05536c466b4e839784f308caad5650b1bccb5300a22d4c02c6abe3ffe8516e5"
+    },
+    {
+      "file": "src/app/api/rules/knowledge/games/[gameId]/rulebooks/route.ts",
+      "baseSHA256": "164f8bf49afc9a934cb9e5288c4d33599a6cb04ac80cb6bd33a333d1591e74a3",
+      "releaseSHA256": "f1ffc97ad5872527ecb41fb5b2fee7cf1d2d4fb3e4514741f480778b96e97605"
+    },
+    {
+      "file": "src/app/api/rules/knowledge/games/[gameId]/rulebooks/upload-url/route.ts",
+      "baseSHA256": "c09e1d7bef538d56110a24e68787eb4ce1bbefa71f276aba16f5170ac6637580",
+      "releaseSHA256": "7e64984c1b6bdc6acea6faf451818312cf7b62772210f13339202c0488c72485"
+    },
+    {
+      "file": "src/app/api/rules/knowledge/games/route.ts",
+      "baseSHA256": "c045cb5754b97a94792f0b90571f229f97b2c756c02d4f431dca77f6f86aeafd",
+      "releaseSHA256": "0147d18c9718a5bdf3f58ae1f3e6e1d312b6bbf8ca4692fe4b6247b6c5c99c87"
+    },
+    {
+      "file": "src/app/knowledge/[gameId]/reader/PublishedRules.tsx",
+      "baseSHA256": "172635bfefad8c7fff2c3acd5dfbe57ef38168e291faeeabe2c05d81de7a4a9a",
+      "releaseSHA256": "92907fe742d593ff552da7f2d0a77274446ba2188ec197fc5d77e6df4f861722"
+    },
+    {
+      "file": "src/app/picks/page.tsx",
+      "baseSHA256": "b27177ddd19d19c3e538c1e32aaced3643698eab66d286582e34ea50f82d6f72",
+      "releaseSHA256": "743883b83e0adff78233906136e2d95effb92677882193201bc8f53af6db338a"
+    },
+    {
+      "file": "src/components/PlayRecordModal.tsx",
+      "baseSHA256": "4159cace39d84698724f3463335834d4c77a8264390f707d1e952fcc11eada5b",
+      "releaseSHA256": "5a7693e18b20e4b7ae6a0d5c5fc89527660ae91899a08f8544798761edae9cc5"
+    },
+    {
+      "file": "src/lib/editorial-proxy-routes.ts",
+      "baseSHA256": null,
+      "releaseSHA256": "9aa9c833f6a851f6333c22aa428bb3008fc96e59493b01e5ae781752a4143792"
+    },
+    {
+      "file": "src/lib/editorial-reader.ts",
+      "baseSHA256": "3ed256cd63281370d5ccba3cc71bf559c7d0319c9859047a01ea7b4a597344cd",
+      "releaseSHA256": "674c19555b90e72d08bc0ddb7e5d8276f687886399ec9e0ded512428c96445d0"
+    },
+    {
+      "file": "src/lib/notion-cache.ts",
+      "baseSHA256": "ee5cdb1bc25a6b1d65abf9f8d75fc70e1615afde2a1c1994fd75601a3903e98a",
+      "releaseSHA256": "aff6d3b85b24ea5a5cdc73eb4b719b1bc6e526181e682ade0aa356c5d02c9e8b"
+    },
+    {
+      "file": "src/lib/notion.ts",
+      "baseSHA256": "2a60e960a5bad2d783e4cfbb03240ebc786f48077edb20d344013ad8d180efcf",
+      "releaseSHA256": "8a830e3a2fcb4aa671c5efd976549760fff2bd434b73789db4a4f4b3ad844438"
+    },
+    {
+      "file": "src/lib/picks-source.ts",
+      "baseSHA256": "d0a16ffb308f0d8f609412da4bffdfdd3ee55814d3bdf602496e4bad62ab307f",
+      "releaseSHA256": "2bb5cf1224e1d48d2fc2ed5c0ba925f34aafd20cf457615350bcdeeb8b2d09b4"
+    }
+  ]
+}
